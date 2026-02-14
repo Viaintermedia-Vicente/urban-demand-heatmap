@@ -31,6 +31,8 @@ DEFAULT_DURATION_H = 2.0
 DEFAULT_RADIUS_M = 300.0
 PRE_WINDOW = timedelta(minutes=60)
 POST_WINDOW = timedelta(minutes=60)
+# Aproximadamente 0.001 grados ~= 111 m en latitudes medias; sirve para agrupar eventos cercanos
+CELL_SIZE_DEG = 0.001
 
 
 def estimate_end_dt(event: Event) -> datetime:
@@ -104,19 +106,22 @@ def compute_hotspots(
         lambda: {"score": 0.0, "lat": 0.0, "lon": 0.0, "count": 0, "radius": DEFAULT_RADIUS_M}
     )
 
+    def quantize(coord: float) -> float:
+        return int(coord / CELL_SIZE_DEG) * CELL_SIZE_DEG
+
     for event in events:
         if allowed and event.category not in allowed:
             continue
         score = event_score(event, target, event.lat, event.lon)
         if score <= 0:
             continue
-        key = (round(event.lat, 4), round(event.lon, 4))
+        key = (quantize(event.lat), quantize(event.lon))
         bucket = buckets[key]
         bucket["score"] += score
         bucket["lat"] += event.lat
         bucket["lon"] += event.lon
         bucket["count"] += 1
-        bucket["radius"] = CATEGORY_RADIUS_M.get(event.category, DEFAULT_RADIUS_M)
+        bucket["radius"] = max(bucket["radius"], CATEGORY_RADIUS_M.get(event.category, DEFAULT_RADIUS_M))
 
     hotspots: List[HotspotPoint] = []
     for key, data in buckets.items():
