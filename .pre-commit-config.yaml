@@ -1,0 +1,8 @@
+repos:
+  - repo: local
+    hooks:
+      - id: backend-unit-tests
+        name: backend-unit-tests
+        entry: make test-unit
+        language: system
+        pass_filenames: false

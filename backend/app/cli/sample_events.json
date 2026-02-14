@@ -1,0 +1,20 @@
+[
+  {
+    "id": "concert01",
+    "title": "Concierto Plaza Mayor",
+    "category": "concierto",
+    "start_dt": "2026-02-12T19:00:00",
+    "end_dt": "2026-02-12T21:00:00",
+    "lat": 40.4153,
+    "lon": -3.7074
+  },
+  {
+    "id": "theatre01",
+    "title": "Obra Teatro Real",
+    "category": "teatro",
+    "start_dt": "2026-02-12T20:00:00",
+    "end_dt": "2026-02-12T22:30:00",
+    "lat": 40.4180,
+    "lon": -3.7100
+  }
+]

@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# FastAPI/coverage artifacts
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / Vite
+node_modules/
+dist/
+.vite/
+frontend/.env
+frontend/.env.*
+*.tsbuildinfo
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+*.orig
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Docker / local tooling
+docker/*.env
+docker/.env
+docker/.env.*
+.docker/
+
+# Misc
+.idea/
+.vscode/

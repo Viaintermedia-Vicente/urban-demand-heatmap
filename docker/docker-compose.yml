@@ -1,0 +1,41 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: hotspots
+      POSTGRES_USER: hotspots_user
+      POSTGRES_PASSWORD: hotspots_pass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      DATABASE_URL: postgresql://hotspots_user:hotspots_pass@db:5432/hotspots
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+    volumes:
+      - ../backend:/app
+
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    volumes:
+      - ../frontend:/usr/src/app
+
+volumes:
+  pgdata:
