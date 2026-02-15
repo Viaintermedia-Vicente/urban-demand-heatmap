@@ -1,0 +1,8 @@
+category,fill_factor,fallback_attendance,default_duration_min,pre_event_min,post_event_min
+music,0.90,3000,180,90,60
+sports,0.95,15000,120,90,60
+theatre,0.75,800,150,60,45
+cinema,0.50,250,120,30,30
+expo,0.60,1000,360,60,60
+conference,0.65,1200,240,60,45
+community,0.40,200,120,30,30

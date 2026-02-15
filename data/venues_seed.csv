@@ -1,0 +1,16 @@
+source,external_id,name,lat,lon,city,region,country,address_line1,address_line2,postal_code,max_capacity
+madrid_cultura,MAD-AUDITORIO,Auditorio Nacional de Música,40.440438,-3.688356,Madrid,Comunidad de Madrid,Spain,Calle del Príncipe de Vergara 146,,28002,23200
+madrid_cultura,MAD-WIZINK,WiZink Center,40.423941,-3.671221,Madrid,Comunidad de Madrid,Spain,Av. Felipe II s/n,,28009,17000
+madrid_cultura,MAD-IFEMA,IFEMA Madrid - Pabellón 12,40.467640,-3.615511,Madrid,Comunidad de Madrid,Spain,Av. del Partenón 5,,28042,25000
+madrid_cultura,MAD-TEATRO-REAL,Teatro Real,40.418987,-3.710522,Madrid,Comunidad de Madrid,Spain,Plaza de Isabel II s/n,,28013,1750
+madrid_cultura,MAD-TEATRO-ESPAÑOL,Teatro Español,40.414706,-3.699088,Madrid,Comunidad de Madrid,Spain,Plaza de Santa Ana 14,,28012,775
+madrid_cultura,MAD-CINES-CALLAO,Cines Callao,40.420330,-3.705439,Madrid,Comunidad de Madrid,Spain,Plaza del Callao 3,,28013,1200
+madrid_cultura,MAD-CAIXAFORUM,CaixaForum Madrid,40.411271,-3.689580,Madrid,Comunidad de Madrid,Spain,Paseo del Prado 36,,28014,600
+madrid_cultura,MAD-MATADERO,Matadero Madrid - Nave 16,40.391533,-3.699794,Madrid,Comunidad de Madrid,Spain,Paseo de la Chopera 14,,28045,1800
+madrid_cultura,MAD-CDM-CERRO,Centro Deportivo Municipal Cerro Almodóvar,40.381620,-3.623470,Madrid,Comunidad de Madrid,Spain,Calle de Villalobos 1,,28031,3500
+madrid_cultura,MAD-PALACIO-VISTALEGRE,Palacio Vistalegre Arena,40.385893,-3.738958,Madrid,Comunidad de Madrid,Spain,Calle de Utebo 1,,28025,15000
+madrid_cultura,MAD-JOY-ESLAVA,Joy Eslava,40.418504,-3.706997,Madrid,Comunidad de Madrid,Spain,Calle del Arenal 11,,28013,1800
+madrid_cultura,MAD-LA-RIVIERA,La Riviera,40.413565,-3.720147,Madrid,Comunidad de Madrid,Spain,Paseo Bajo de la Virgen del Puerto s/n,,28005,2500
+madrid_cultura,MAD-TEATROS-CANAL,Teatros del Canal - Sala Roja,40.437421,-3.703010,Madrid,Comunidad de Madrid,Spain,Calle de Cea Bermúdez 1,,28003,843
+madrid_cultura,MAD-ESPACIO-5,Espacio Quinta de los Molinos,40.443844,-3.641996,Madrid,Comunidad de Madrid,Spain,Calle Alcalá 527,,28027,1200
+madrid_cultura,MAD-CONDDE-DUQUE,Centro Cultural Conde Duque,40.427875,-3.714942,Madrid,Comunidad de Madrid,Spain,Calle Conde Duque 11,,28015,2000
