@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-from typing import Any, Dict, Optional
+from datetime import date, datetime, time, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Engine
 
-from .tables import events_table
+from .tables import events_table, venues_table
 from .venues_repository import VenuesRepository
 
 
@@ -69,6 +69,35 @@ class EventsRepository:
             ).mappings().first()
         return dict(row) if row else None
 
+    def list_events_for_day(self, day: date) -> List[Dict[str, Any]]:
+        start, end = self._day_bounds(day)
+        with self.engine.begin() as conn:
+            rows = conn.execute(
+                select(events_table).where(
+                    (events_table.c.start_dt >= start) & (events_table.c.start_dt < end)
+                )
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
+    def list_events_from_hour(self, day: date, from_hour: int) -> List[Dict[str, Any]]:
+        day_start, day_end = self._day_bounds(day)
+        start = day_start + timedelta(hours=from_hour)
+        join_stmt = events_table.outerjoin(venues_table, events_table.c.venue_id == venues_table.c.id)
+        with self.engine.begin() as conn:
+            rows = conn.execute(
+                select(
+                    events_table.c.title,
+                    events_table.c.category,
+                    events_table.c.start_dt,
+                    events_table.c.expected_attendance,
+                    venues_table.c.name.label("venue_name"),
+                )
+                .select_from(join_stmt)
+                .where((events_table.c.start_dt >= start) & (events_table.c.start_dt < day_end))
+                .order_by(events_table.c.start_dt)
+            ).mappings().all()
+        return [dict(row) for row in rows]
+
     def _resolve_venue_id(self, event_data: Dict[str, Any]) -> Optional[int]:
         venue_source = event_data.get("venue_source", event_data.get("source"))
         venue_external_id = event_data.get("venue_external_id")
@@ -82,3 +111,9 @@ class EventsRepository:
             if venue:
                 venue_id = venue["id"]
         return venue_id
+
+    @staticmethod
+    def _day_bounds(day: date):
+        start = datetime.combine(day, time.min, tzinfo=timezone.utc)
+        end = start + timedelta(days=1)
+        return start, end

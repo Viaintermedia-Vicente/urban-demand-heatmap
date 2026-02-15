@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, List, Optional
 import math
 
@@ -42,9 +42,16 @@ def estimate_end_dt(event: Event) -> datetime:
     return event.start_dt + timedelta(hours=hours)
 
 
+def _to_utc_naive(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        return dt
+    return dt.astimezone(timezone.utc).replace(tzinfo=None)
+
+
 def temporal_weight(event: Event, target: datetime) -> float:
-    start = event.start_dt
-    end = estimate_end_dt(event)
+    start = _to_utc_naive(event.start_dt)
+    end = _to_utc_naive(estimate_end_dt(event))
+    target = _to_utc_naive(target)
     pre_start = start - PRE_WINDOW
     post_end = end + POST_WINDOW
 
