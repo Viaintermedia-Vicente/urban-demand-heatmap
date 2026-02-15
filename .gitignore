@@ -1,47 +1,16 @@
 # Python
-__pycache__/
-*.py[cod]
-*.pyo
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.venv/
-venv/
-env/
-.env
-.env.*
+backend/.venv/
+**/__pycache__/
+*.pyc
 
-# FastAPI/coverage artifacts
-.coverage
-coverage.xml
-htmlcov/
+# Local DB / temp
+tmp_dev.db
+*.db
+*.sqlite
+*.sqlite3
 
-# Node / Vite
-node_modules/
-dist/
-.vite/
-frontend/.env
-frontend/.env.*
-*.tsbuildinfo
+# Node
+**/node_modules/
 
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-*.swo
-*.orig
-
-# macOS
+# OS
 .DS_Store
-.AppleDouble
-.LSOverride
-
-# Docker / local tooling
-docker/*.env
-docker/.env
-docker/.env.*
-.docker/
-
-# Misc
-.idea/
-.vscode/

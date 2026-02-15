@@ -10,6 +10,7 @@ from sqlalchemy import create_engine
 
 from app.infra.db.category_rules_repository import CategoryRulesRepository
 from app.infra.db.events_repository import EventsRepository
+from app.infra.db.tables import metadata
 from app.infra.db.venues_repository import VenuesRepository
 from app.services.attendance import estimate_expected_attendance
 
@@ -31,17 +32,24 @@ def import_events_from_csv(
         if not database_url:
             raise RuntimeError("DATABASE_URL required if engine not provided")
         engine = create_engine(database_url, future=True)
+    metadata.create_all(engine)
     venues_repo = VenuesRepository(engine)
     events_repo = EventsRepository(engine=engine, venues_repo=venues_repo)
     rules_repo = CategoryRulesRepository(engine)
 
-    _import_category_rules(category_rules_path, rules_repo)
-    capacity_map = _import_venues(venues_path, venues_repo)
+    rules_count = _import_category_rules(category_rules_path, rules_repo)
+    capacity_map, venues_count = _import_venues(venues_path, venues_repo)
     rules_map = rules_repo.get_rules_map()
-    _import_events(events_path, events_repo, capacity_map, rules_map)
+    events_count = _import_events(events_path, events_repo, capacity_map, rules_map)
+    db_url = getattr(engine, "url", database_url or os.getenv("DATABASE_URL"))
+    print(
+        f"[import_csv] Import complete database={db_url} "
+        f"rules={rules_count} venues={venues_count} events={events_count}"
+    )
 
 
-def _import_category_rules(path: Path, repo: CategoryRulesRepository) -> None:
+def _import_category_rules(path: Path, repo: CategoryRulesRepository) -> int:
+    count = 0
     for row in _read_csv(path):
         repo.upsert_rule(
             {
@@ -53,10 +61,13 @@ def _import_category_rules(path: Path, repo: CategoryRulesRepository) -> None:
                 "post_event_min": int(row["post_event_min"]),
             }
         )
+        count += 1
+    return count
 
 
-def _import_venues(path: Path, repo: VenuesRepository) -> Dict[str, Optional[int]]:
+def _import_venues(path: Path, repo: VenuesRepository) -> tuple[Dict[str, Optional[int]], int]:
     capacity_by_key: Dict[str, Optional[int]] = {}
+    count = 0
     for row in _read_csv(path):
         payload = {
             "source": row["source"],
@@ -75,7 +86,8 @@ def _import_venues(path: Path, repo: VenuesRepository) -> Dict[str, Optional[int
         repo.upsert_venue(payload)
         key = _venue_key(payload["source"], payload["external_id"])
         capacity_by_key[key] = payload["max_capacity"]
-    return capacity_by_key
+        count += 1
+    return capacity_by_key, count
 
 
 def _import_events(
@@ -83,7 +95,8 @@ def _import_events(
     repo: EventsRepository,
     capacity_map: Dict[str, Optional[int]],
     rules_map: Dict[str, dict],
-) -> None:
+) -> int:
+    count = 0
     for row in _read_csv(path):
         source = row["source"]
         external_id = row["external_id"]
@@ -119,6 +132,8 @@ def _import_events(
             "popularity_score": None,
         }
         repo.upsert_event(payload)
+        count += 1
+    return count
 
 
 def _venue_key(source: str, external_id: Optional[str]) -> str:
