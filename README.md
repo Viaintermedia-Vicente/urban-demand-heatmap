@@ -55,6 +55,14 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
 - Lanzar import demo: `python -m app.cli.main import --source csv --file datos.csv`
 - La CLI reutiliza la lógica del dominio, por lo que refleja los mismos resultados que verán la API y el frontend una vez implementados.
 
+## API FastAPI
+- Lanzar la API REST localmente:
+  ```
+  cd backend
+  uvicorn app.api.main:app --reload
+  ```
+- El servidor utiliza `DATABASE_URL`; asegúrate de que apunte a Postgres o SQLite antes de iniciar.
+
 ## Roadmap
 1. MVP de predicción con modelos estadísticos simples.
 2. Integración de streams en tiempo real (eventos IoT / municipales).
