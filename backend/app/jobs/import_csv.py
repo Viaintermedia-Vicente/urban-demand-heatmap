@@ -149,3 +149,9 @@ def _read_csv(path: Path):
 
 def _parse_dt(value: str) -> datetime:
     return datetime.fromisoformat(value)
+
+if __name__ == "__main__":
+    import sys
+    data_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('../data')
+    import_events_from_csv(data_dir)
+
