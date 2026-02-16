@@ -62,3 +62,14 @@ class WeatherRepository:
                 .order_by(weather_observations_table.c.observed_at)
             ).mappings().all()
         return [dict(row) for row in rows]
+    def get_observation_at(self, lat: float, lon: float, observed_at: datetime):
+        with self.engine.begin() as conn:
+            row = conn.execute(
+                select(weather_observations_table)
+                .where(weather_observations_table.c.lat == lat)
+                .where(weather_observations_table.c.lon == lon)
+                .where(weather_observations_table.c.observed_at == observed_at)
+                .limit(1)
+            ).mappings().first()
+        return dict(row) if row else None
+

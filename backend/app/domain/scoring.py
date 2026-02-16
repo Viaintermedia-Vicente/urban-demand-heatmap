@@ -102,6 +102,35 @@ def event_score(event: Event, target: datetime, lat: float, lon: float) -> float
     return temporal * spatial * base_weight * category_boost
 
 
+def weather_factor(
+    temperature_c: float | None,
+    precipitation_mm: float | None,
+    wind_speed_kmh: float | None,
+) -> float:
+    temp_factor = 1.0 if temperature_c is None else math.exp(-((temperature_c - 20.0) ** 2) / 100.0)
+    if precipitation_mm is None:
+        rain_factor = 1.0
+    elif precipitation_mm <= 0:
+        rain_factor = 1.0
+    elif precipitation_mm <= 1:
+        rain_factor = 0.9
+    elif precipitation_mm <= 3:
+        rain_factor = 0.7
+    else:
+        rain_factor = 0.4
+    if wind_speed_kmh is None:
+        wind_factor = 1.0
+    elif wind_speed_kmh < 15:
+        wind_factor = 1.0
+    elif wind_speed_kmh <= 30:
+        wind_factor = 0.8
+    else:
+        wind_factor = 0.6
+    raw = temp_factor * rain_factor * wind_factor
+    return max(0.3, min(1.1, raw))
+
+
+
 def compute_hotspots(
     events: Iterable[Event],
     target: datetime,
