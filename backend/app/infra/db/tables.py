@@ -85,3 +85,36 @@ weather_observations_table = Table(
     Column("updated_at", DateTime(timezone=True)),
 )
 
+
+
+event_feature_snapshots_table = Table(
+    "event_feature_snapshots",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("target_at", DateTime(timezone=True), nullable=False),
+    Column("event_id", Text, nullable=False),
+    Column("event_start_dt", DateTime(timezone=True), nullable=False),
+    Column("event_end_dt", DateTime(timezone=True)),
+    Column("lat", Float, nullable=False),
+    Column("lon", Float, nullable=False),
+    Column("category", Text),
+    Column("expected_attendance", Integer),
+    Column("hours_to_start", Float),
+    Column("weekday", Integer),
+    Column("month", Integer),
+    Column("temperature_c", Float),
+    Column("precipitation_mm", Float),
+    Column("rain_mm", Float),
+    Column("snowfall_mm", Float),
+    Column("wind_speed_kmh", Float),
+    Column("wind_gust_kmh", Float),
+    Column("weather_code", Integer),
+    Column("humidity_pct", Float),
+    Column("pressure_hpa", Float),
+    Column("cloud_cover_pct", Float),
+    Column("score_base", Float),
+    Column("score_weather_factor", Float),
+    Column("score_final", Float),
+    Column("created_at", DateTime(timezone=True)),
+)
+

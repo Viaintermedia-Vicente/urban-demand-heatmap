@@ -80,3 +80,36 @@ CREATE TABLE IF NOT EXISTS weather_observations (
 
 CREATE INDEX IF NOT EXISTS idx_weather_observed_at ON weather_observations (observed_at);
 
+CREATE TABLE IF NOT EXISTS event_feature_snapshots (
+    id SERIAL PRIMARY KEY,
+    target_at TIMESTAMPTZ NOT NULL,
+    event_id TEXT NOT NULL,
+    event_start_dt TIMESTAMPTZ NOT NULL,
+    event_end_dt TIMESTAMPTZ,
+    lat DOUBLE PRECISION NOT NULL,
+    lon DOUBLE PRECISION NOT NULL,
+    category TEXT,
+    expected_attendance INTEGER,
+    hours_to_start DOUBLE PRECISION,
+    weekday INTEGER,
+    month INTEGER,
+    temperature_c DOUBLE PRECISION,
+    precipitation_mm DOUBLE PRECISION,
+    rain_mm DOUBLE PRECISION,
+    snowfall_mm DOUBLE PRECISION,
+    wind_speed_kmh DOUBLE PRECISION,
+    wind_gust_kmh DOUBLE PRECISION,
+    weather_code INTEGER,
+    humidity_pct DOUBLE PRECISION,
+    pressure_hpa DOUBLE PRECISION,
+    cloud_cover_pct DOUBLE PRECISION,
+    score_base DOUBLE PRECISION,
+    score_weather_factor DOUBLE PRECISION,
+    score_final DOUBLE PRECISION,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (target_at, event_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_event_snapshots_target ON event_feature_snapshots (target_at);
+CREATE INDEX IF NOT EXISTS idx_event_snapshots_event ON event_feature_snapshots (event_id);
+
