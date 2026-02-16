@@ -58,3 +58,30 @@ events_table = Table(
     Column("created_at", DateTime(timezone=True)),
     Column("updated_at", DateTime(timezone=True)),
 )
+
+
+weather_observations_table = Table(
+    "weather_observations",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("source", Text, nullable=False),
+    Column("location_name", Text),
+    Column("lat", Float, nullable=False),
+    Column("lon", Float, nullable=False),
+    Column("observed_at", DateTime(timezone=True), nullable=False),
+    Column("temperature_c", Float),
+    Column("precipitation_mm", Float),
+    Column("rain_mm", Float),
+    Column("snowfall_mm", Float),
+    Column("cloud_cover_pct", Float),
+    Column("wind_speed_kmh", Float),
+    Column("wind_gust_kmh", Float),
+    Column("wind_dir_deg", Float),
+    Column("humidity_pct", Float),
+    Column("pressure_hpa", Float),
+    Column("visibility_m", Float),
+    Column("weather_code", Integer),
+    Column("created_at", DateTime(timezone=True)),
+    Column("updated_at", DateTime(timezone=True)),
+)
+

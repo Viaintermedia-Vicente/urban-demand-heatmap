@@ -53,3 +53,30 @@ CREATE INDEX IF NOT EXISTS idx_events_start_dt ON events (start_dt);
 CREATE INDEX IF NOT EXISTS idx_events_category ON events (category);
 CREATE INDEX IF NOT EXISTS idx_venues_city ON venues (city);
 CREATE INDEX IF NOT EXISTS idx_venues_name ON venues (name);
+
+CREATE TABLE IF NOT EXISTS weather_observations (
+    id SERIAL PRIMARY KEY,
+    source TEXT NOT NULL,
+    location_name TEXT,
+    lat DOUBLE PRECISION NOT NULL,
+    lon DOUBLE PRECISION NOT NULL,
+    observed_at TIMESTAMPTZ NOT NULL,
+    temperature_c DOUBLE PRECISION,
+    precipitation_mm DOUBLE PRECISION,
+    rain_mm DOUBLE PRECISION,
+    snowfall_mm DOUBLE PRECISION,
+    cloud_cover_pct DOUBLE PRECISION,
+    wind_speed_kmh DOUBLE PRECISION,
+    wind_gust_kmh DOUBLE PRECISION,
+    wind_dir_deg DOUBLE PRECISION,
+    humidity_pct DOUBLE PRECISION,
+    pressure_hpa DOUBLE PRECISION,
+    visibility_m DOUBLE PRECISION,
+    weather_code INTEGER,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now(),
+    UNIQUE (source, lat, lon, observed_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_weather_observed_at ON weather_observations (observed_at);
+
