@@ -72,3 +72,55 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
 ## Licencia y contribución
 - Licencia propuesta: MIT (pendiente de confirmación).
 - Guía de contribución: PRs vía forks, revisión por pares, convenciones de commit semánticas.
+
+## Dataset y entrenamiento
+- Materializar snapshots para una fecha/hora:
+  ```bash
+  cd backend
+  python -m app.jobs.materialize_snapshots materialize --date 2026-03-01 --hour 22 --lat 40.4168 --lon -3.7038
+  ```
+- Exportar dataset para entrenamiento:
+  ```bash
+  cd backend
+  python -m app.jobs.export_training_dataset --out ../dataset.csv --start-date 2026-03-01 --end-date 2026-03-07
+  ```
+- Entrenar baseline lineal con las snapshots exportadas:
+  ```bash
+  cd backend
+  python -m app.jobs.train_baseline --csv-path ../dataset.csv --model-out ../model.json
+  ```
+
+### Quick check
+- `cd backend && scripts/quick_check.sh` (genera datos, dataset y modelo, dejando el log en `run_logs/last_run.log`).
+
+### Run pipeline (copy/paste safe)
+```bash
+: "# Activate virtualenv"
+source backend/.venv/bin/activate
+: "# Move into backend"
+cd backend
+: "# Set database location (defaults to sqlite file)"
+export DATABASE_URL="sqlite:////Users/vicente/Trabajos/VTC/proyecto/FinMaster/tmp_dev.db"
+: "# Reset SQLite database"
+rm -f /Users/vicente/Trabajos/VTC/proyecto/FinMaster/tmp_dev.db
+: "# Import events/venues/rules from CSV seeds"
+python -m app.jobs.import_csv ../data
+: "# Attempt to import weather from Open-Meteo (may fail offline)"
+python -m app.jobs.import_weather --lat 40.4168 --lon -3.7038 --start-date 2026-03-01 --end-date 2026-03-02 --location-name Madrid
+: "# Materialize feature snapshots for a sample target"
+python -m app.jobs.materialize_snapshots materialize --date 2026-03-01 --hour 22 --lat 40.4168 --lon -3.7038
+: "# Export dataset to CSV"
+python -m app.jobs.export_training_dataset --out ../dataset.csv --start-date 2026-03-01 --end-date 2026-03-07
+: "# Train baseline regression and store model"
+python -m app.jobs.train_baseline --csv-path ../dataset.csv --model-out ../model.json
+: "# Optional sanity checks"
+head -n 2 ../dataset.csv
+python - <<'EOF'
+import os
+from sqlalchemy import create_engine, text
+e=create_engine(os.environ["DATABASE_URL"])
+with e.connect() as c:
+    print([r[1] for r in c.execute(text("PRAGMA table_info(event_feature_snapshots)")).fetchall()])
+EOF
+make test
+```
