@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, List, Optional
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select, update, or_
 from sqlalchemy.engine import Engine
 
 from .tables import weather_observations_table
@@ -63,13 +63,25 @@ class WeatherRepository:
             ).mappings().all()
         return [dict(row) for row in rows]
     def get_observation_at(self, lat: float, lon: float, observed_at: datetime):
+        target_naive = observed_at
+        if observed_at.tzinfo is not None:
+            target_naive = observed_at.astimezone(timezone.utc).replace(tzinfo=None)
+        candidates = [target_naive]
+        if observed_at.tzinfo is not None:
+            candidates.append(observed_at.astimezone(timezone.utc))
+        from datetime import timedelta
+        window_start = target_naive - timedelta(minutes=1)
+        window_end = target_naive + timedelta(minutes=1)
         with self.engine.begin() as conn:
-            row = conn.execute(
+            stmt = (
                 select(weather_observations_table)
                 .where(weather_observations_table.c.lat == lat)
                 .where(weather_observations_table.c.lon == lon)
-                .where(weather_observations_table.c.observed_at == observed_at)
+                .where(weather_observations_table.c.observed_at >= window_start)
+                .where(weather_observations_table.c.observed_at <= window_end)
+                .order_by(weather_observations_table.c.observed_at)
                 .limit(1)
-            ).mappings().first()
+            )
+            row = conn.execute(stmt).mappings().first()
         return dict(row) if row else None
 

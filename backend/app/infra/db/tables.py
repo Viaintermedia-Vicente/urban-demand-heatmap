@@ -111,6 +111,7 @@ event_feature_snapshots_table = Table(
     Column("weather_code", Integer),
     Column("humidity_pct", Float),
     Column("pressure_hpa", Float),
+    Column("visibility_m", Float),
     Column("cloud_cover_pct", Float),
     Column("score_base", Float),
     Column("score_weather_factor", Float),

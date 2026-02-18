@@ -14,3 +14,8 @@ tmp_dev.db
 
 # OS
 .DS_Store
+
+# Generated assets
+**/dataset.csv
+model*.json
+run_logs/

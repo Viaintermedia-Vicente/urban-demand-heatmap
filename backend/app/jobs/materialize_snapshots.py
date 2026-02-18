@@ -54,7 +54,7 @@ def materialize_snapshots(
 
     events = events_repo.list_events_for_day(date_obj)
     filtered = _filter_events(events, target_naive, lat, lon, radius_km)
-    weather = weather_repo.get_observation_at(lat, lon, target_at_utc)
+    weather = weather_repo.get_observation_at(lat, lon, target_naive)
     factor = weather_factor(
         weather.get("temperature_c") if weather else None,
         weather.get("precipitation_mm") if weather else None,
@@ -100,6 +100,7 @@ def materialize_snapshots(
                 "weather_code": weather.get("weather_code") if weather else None,
                 "humidity_pct": weather.get("humidity_pct") if weather else None,
                 "pressure_hpa": weather.get("pressure_hpa") if weather else None,
+                "visibility_m": weather.get("visibility_m") if weather else None,
                 "cloud_cover_pct": weather.get("cloud_cover_pct") if weather else None,
                 "score_base": base_score,
                 "score_weather_factor": factor,

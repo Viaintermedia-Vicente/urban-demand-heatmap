@@ -14,14 +14,16 @@ from app.infra.db.tables import metadata
 from app.infra.db.venues_repository import VenuesRepository
 from app.services.attendance import estimate_expected_attendance
 
+DEFAULT_DATA_DIR = Path(os.getenv('IMPORT_DATA_DIR', '/data'))
+
 
 def import_events_from_csv(
-    data_dir: str | Path,
+    data_dir: str | Path | None = None,
     *,
     engine=None,
     database_url: Optional[str] = None,
 ) -> None:
-    base_path = Path(data_dir)
+    base_path = _resolve_data_dir(data_dir)
     venues_path = base_path / "venues_seed.csv"
     events_path = base_path / "events_seed.csv"
     category_rules_path = base_path / "category_rules_seed.csv"
@@ -46,6 +48,18 @@ def import_events_from_csv(
         f"[import_csv] Import complete database={db_url} "
         f"rules={rules_count} venues={venues_count} events={events_count}"
     )
+
+
+def _resolve_data_dir(data_dir: str | Path | None) -> Path:
+    if data_dir is None:
+        candidate = DEFAULT_DATA_DIR
+    else:
+        candidate = Path(data_dir)
+    if not candidate.is_absolute():
+        candidate = (Path.cwd() / candidate).resolve()
+    if not candidate.exists():
+        raise FileNotFoundError(f"Data directory not found: {candidate}")
+    return candidate
 
 
 def _import_category_rules(path: Path, repo: CategoryRulesRepository) -> int:
@@ -152,6 +166,6 @@ def _parse_dt(value: str) -> datetime:
 
 if __name__ == "__main__":
     import sys
-    data_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path('../data')
-    import_events_from_csv(data_dir)
+    data_arg = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    import_events_from_csv(data_arg)
 

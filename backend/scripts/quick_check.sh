@@ -89,6 +89,7 @@ with engine.begin() as conn:
 PY
 fi
 
+python -m app.jobs.materialize_range run --start-date 2026-03-01 --end-date 2026-03-07 --hours 0-23 --lat 40.4168 --lon -3.7038
 python -m app.jobs.materialize_snapshots materialize --date 2026-03-01 --hour 22 --lat 40.4168 --lon -3.7038
 python -m app.jobs.export_training_dataset --out ../dataset.csv --start-date 2026-03-01 --end-date 2026-03-07
 python -m app.jobs.train_baseline --csv-path ../dataset.csv --model-out ../model.json
@@ -105,6 +106,40 @@ with engine.connect() as conn:
 print(f"events={events} venues={venues} weather={weather} snapshots={snapshots}")
 PY
 )
+
+snapshots_num=$(printf '%s\n' "$counts" | sed -n 's/.*snapshots=\([0-9]*\).*/\1/p')
+if [[ -z "$snapshots_num" ]]; then
+    snapshots_num=0
+fi
+
+dataset_rows=$(python - <<'PY'
+import csv
+from pathlib import Path
+path = Path('../dataset.csv')
+rows = 0
+if path.exists():
+    with path.open() as fp:
+        reader = csv.reader(fp)
+        next(reader, None)
+        rows = sum(1 for _ in reader)
+print(rows)
+PY
+)
+if [[ -z "$dataset_rows" ]]; then
+    dataset_rows=0
+fi
+
+if (( snapshots_num >= 50 )); then
+    if (( dataset_rows > 50 )); then
+        rows_check="OK (>50)"
+    else
+        rows_check="FAIL (<=50)"
+    fi
+else
+    rows_check="SKIP (snapshots=${snapshots_num})"
+fi
+
+echo "[quick_check] dataset_rows=${dataset_rows} snapshots=${snapshots_num} rows_check=${rows_check}"
 
 sample_line=$(tail -n +2 ../dataset.csv | head -n 1 || true)
 visibility_status=$(python - <<'PY'
@@ -129,7 +164,7 @@ summary+=("DB: ${DATABASE_URL}")
 summary+=("Counts: ${counts}")
 summary+=("Sample: ${sample_line:-<no data>}")
 summary+=("Visibility: ${visibility_status}")
-summary+=("Dataset: ../dataset.csv")
+summary+=("Dataset: ../dataset.csv rows=${dataset_rows} (${rows_check})")
 summary+=("Model/Log: ../model.json | ${LOG_FILE}")
 
 exec 1>&3 3>&-
