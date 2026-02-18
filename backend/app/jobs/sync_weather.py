@@ -11,6 +11,7 @@ from sqlalchemy import create_engine
 from app.infra.db.tables import metadata
 from app.infra.db.weather_repository import WeatherRepository
 from app.providers.weather.base import ExternalWeatherHour, WeatherProvider
+from app.providers.weather.open_meteo import OpenMeteoWeatherProvider
 
 app = typer.Typer(help="Sync hourly weather observations into the database")
 DEFAULT_LAT = float(os.getenv("SYNC_WEATHER_LAT", "40.4168"))
@@ -42,7 +43,7 @@ def sync_weather(
         engine = create_engine(database_url, future=True)
     metadata.create_all(engine)
     repo = WeatherRepository(engine)
-    provider = provider or _DemoWeatherProvider()
+    provider = provider or _resolve_weather_provider()
     reference = reference or datetime.now(timezone.utc).date()
     start_day = reference - timedelta(days=past_days)
     end_day = reference + timedelta(days=future_days)
@@ -105,6 +106,13 @@ def _log_summary(lat: float, lon: float, stats: Dict[str, int], start: date, end
         f"[sync_weather] lat={lat} lon={lon} db={db_url} range={start}:{end} "
         f"inserted={stats['inserted']} updated={stats['updated']}"
     )
+
+
+def _resolve_weather_provider() -> WeatherProvider:
+    mode = (os.getenv("SYNC_WEATHER_PROVIDER") or "demo").lower()
+    if mode in {"open-meteo", "open_meteo", "online"}:
+        return OpenMeteoWeatherProvider()
+    return _DemoWeatherProvider()
 
 class _DemoWeatherProvider:
     def fetch_hourly(

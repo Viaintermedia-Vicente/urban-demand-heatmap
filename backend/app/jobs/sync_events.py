@@ -11,6 +11,7 @@ from app.infra.db.events_repository import EventsRepository
 from app.infra.db.tables import metadata
 from app.infra.db.venues_repository import VenuesRepository
 from app.providers.events.base import EventsProvider, ExternalEvent
+from app.providers.events.ticketmaster import TicketmasterEventsProvider
 
 app = typer.Typer(help="Sync external events into the FinMaster database")
 DEFAULT_COUNTRY = os.getenv("SYNC_EVENTS_COUNTRY", "ES")
@@ -47,7 +48,7 @@ def sync_events(
     metadata.create_all(engine)
     venues_repo = VenuesRepository(engine)
     events_repo = EventsRepository(engine, venues_repo=venues_repo)
-    provider = provider or _DemoEventsProvider()
+    provider = provider or _resolve_events_provider()
     reference = reference or datetime.now(timezone.utc)
 
     stats = {
@@ -193,6 +194,16 @@ def _log_summary(city: str, stats: Dict[str, Dict[str, int]], past_days: int, fu
         f"[sync_events] city={city} db={db_url} past={past_days} future={future_days} "
         f"events={stats['events']} venues={stats['venues']}"
     )
+
+
+def _resolve_events_provider() -> EventsProvider:
+    api_key = os.getenv("TICKETMASTER_API_KEY")
+    if api_key:
+        try:
+            return TicketmasterEventsProvider(api_key=api_key)
+        except Exception as exc:
+            print(f"[sync_events] WARNING: Ticketmaster provider unavailable ({exc}); falling back to demo")
+    return _DemoEventsProvider()
 
 class _DemoEventsProvider:
     def fetch_events(
