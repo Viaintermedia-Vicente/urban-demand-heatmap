@@ -122,3 +122,55 @@ def test_export_training_dataset_multiple_rows(tmp_path):
     assert len(rows) >= 6
     assert "label_lead_time_min" in rows[0]
     assert "label_attendance_factor" in rows[0]
+
+def test_export_training_dataset_contains_label_columns(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'labels.db'}", future=True)
+    metadata.create_all(engine)
+    repo = EventFeatureSnapshotsRepository(engine)
+    target = datetime(2026, 3, 2, 18, tzinfo=timezone.utc)
+    repo.upsert_many(
+        [
+            {
+                "target_at": target,
+                "event_id": "evt-label",
+                "event_start_dt": target + timedelta(hours=1),
+                "event_end_dt": target + timedelta(hours=3),
+                "lat": 40.4,
+                "lon": -3.7,
+                "category": "sports",
+                "expected_attendance": 5000,
+                "hours_to_start": 1.0,
+                "weekday": target.weekday(),
+                "month": target.month,
+                "temperature_c": 10.0,
+                "precipitation_mm": 0.5,
+                "rain_mm": 0.5,
+                "snowfall_mm": 0.0,
+                "wind_speed_kmh": 20.0,
+                "wind_gust_kmh": 35.0,
+                "weather_code": 2,
+                "humidity_pct": 60.0,
+                "pressure_hpa": 1008.0,
+                "visibility_m": 8000.0,
+                "cloud_cover_pct": 80.0,
+                "score_base": 1.2,
+                "score_weather_factor": 0.85,
+                "score_final": 1.02,
+            }
+        ]
+    )
+    csv_path = tmp_path / 'labels.csv'
+    export_training_dataset(
+        csv_path,
+        start_date='2026-03-02',
+        end_date='2026-03-02',
+        engine=engine,
+    )
+    with csv_path.open() as fp:
+        reader = csv.DictReader(fp)
+        rows = list(reader)
+    assert rows, 'dataset must contain at least one row'
+    row = rows[0]
+    assert 'label_lead_time_min' in row
+    assert 'label_attendance_factor' in row
+

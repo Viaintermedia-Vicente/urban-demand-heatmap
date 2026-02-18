@@ -13,8 +13,7 @@ from app.infra.db.tables import metadata
 from app.jobs.import_csv import import_events_from_csv
 
 
-@pytest.fixture()
-def api_client(tmp_path, monkeypatch):
+def _build_api_client(tmp_path, monkeypatch, *, create_models: bool):
     db_path = tmp_path / "api_tests.db"
     engine = create_engine(
         f"sqlite:///{db_path}",
@@ -26,8 +25,15 @@ def api_client(tmp_path, monkeypatch):
     import_events_from_csv(data_dir, engine=engine)
     model_dir = tmp_path / "models"
     model_dir.mkdir()
-    _write_dummy_model(model_dir / "model_lead_time.json", target_col="label_lead_time_min", bias=60)
-    _write_dummy_model(model_dir / "model_attendance_factor.json", target_col="label_attendance_factor", bias=0.9)
+    monkeypatch.delenv("MODEL_DIR", raising=False)
+    monkeypatch.delenv("HEATMAP_MODEL_DIR", raising=False)
+    if create_models:
+        _write_dummy_model(model_dir / "model_lead_time.json", target_col="label_lead_time_min", bias=60)
+        _write_dummy_model(
+            model_dir / "model_attendance_factor.json",
+            target_col="label_attendance_factor",
+            bias=0.9,
+        )
     monkeypatch.setenv("HEATMAP_MODEL_DIR", str(model_dir))
     app = create_app(engine=engine)
     app.dependency_overrides[get_engine] = lambda: engine
@@ -35,6 +41,16 @@ def api_client(tmp_path, monkeypatch):
         yield client
     app.dependency_overrides.clear()
     metadata.drop_all(engine)
+
+
+@pytest.fixture()
+def api_client(tmp_path, monkeypatch):
+    yield from _build_api_client(tmp_path, monkeypatch, create_models=True)
+
+
+@pytest.fixture()
+def api_client_no_models(tmp_path, monkeypatch):
+    yield from _build_api_client(tmp_path, monkeypatch, create_models=False)
 
 
 def _write_dummy_model(path: Path, target_col: str, bias: float):
