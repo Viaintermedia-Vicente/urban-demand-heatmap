@@ -104,6 +104,7 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
 - **Backfill / histórico**: los flags `--past-days` y `--future-days` existen en ambos jobs para rellenar histórico y pronóstico sin duplicar datos (upsert idempotente por `source + external_id` y `source + lat+lon + observed_at`).
 - **Scripts cron-safe**: `backend/scripts/cron_sync_weather.sh` y `backend/scripts/cron_sync_events.sh` encapsulan la activación del entorno, `DATABASE_URL` (por defecto `../tmp_dev.db`) y parámetros básicos. Añádelos a tu cron/planificador (Plesk) invocando `bash backend/scripts/cron_sync_*.sh`.
 - **Plesk / Docker**: en contenedores puedes ejecutar `docker compose exec backend bash scripts/cron_sync_weather.sh` y lo mismo para eventos. Configura las variables de entorno (`DATABASE_URL`, `TICKETMASTER_API_KEY`, etc.) en el servicio antes de ejecutar.
+- **Inflador demo**: `docker compose exec backend python -m app.jobs.inflate_demo_data --city Madrid --lat 40.4168 --lon -3.7038 --past-days 90 --future-days 30 --per-day 20` genera eventos, meteo, snapshots y dataset/modelos para demos.
 
 ### Run pipeline (copy/paste safe)
 ```bash

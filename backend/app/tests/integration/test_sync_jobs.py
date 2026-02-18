@@ -7,9 +7,11 @@ from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import create_engine, func, select
 
-from app.infra.db.tables import events_table, metadata, venues_table, weather_observations_table
+from app.infra.db.tables import events_table, metadata, venues_table, weather_observations_table, event_feature_snapshots_table
 from app.jobs.sync_events import sync_events
 from app.jobs.sync_weather import sync_weather
+from app.jobs.generate_demo_events import generate_demo_events
+from app.jobs.inflate_demo_data import inflate_demo_data
 from app.providers.events.base import ExternalEvent, EventsProvider
 from app.providers.weather.base import ExternalWeatherHour, WeatherProvider
 
@@ -251,4 +253,62 @@ def test_cron_scripts_exit_codes(tmp_path):
     env["DATABASE_URL"] = f"sqlite:///{tmp_path / 'cron_weather.db'}"
     weather_result = subprocess.run(["bash", str(SCRIPTS_DIR / "cron_sync_weather.sh")], env=env, capture_output=True, text=True)
     assert weather_result.returncode == 0, weather_result.stderr
+
+
+def test_generate_demo_events_idempotent(tmp_path):
+    engine = _make_engine(tmp_path)
+    stats1 = generate_demo_events(
+        city="TestCity",
+        lat=40.1,
+        lon=-3.5,
+        past_days=2,
+        future_days=1,
+        per_day=4,
+        engine=engine,
+        reference_date=date(2026, 3, 5),
+    )
+    stats2 = generate_demo_events(
+        city="TestCity",
+        lat=40.1,
+        lon=-3.5,
+        past_days=2,
+        future_days=1,
+        per_day=4,
+        engine=engine,
+        reference_date=date(2026, 3, 5),
+    )
+    expected = (2 + 1 + 1) * 4
+    assert stats1["inserted"] == expected
+    assert stats2["inserted"] == 0
+    with engine.begin() as conn:
+        assert _count(conn, events_table) == expected
+
+
+
+def test_inflate_demo_data_creates_volume(tmp_path):
+    engine = _make_engine(tmp_path)
+    dataset_path = tmp_path / "dataset.csv"
+    model_dir = tmp_path / "models"
+    summary = inflate_demo_data(
+        city="Madrid",
+        lat=40.4,
+        lon=-3.7,
+        past_days=2,
+        future_days=1,
+        per_day=2,
+        hours="10-12",
+        dataset_path=dataset_path,
+        model_dir=model_dir,
+        engine=engine,
+        reference_date=date(2026, 3, 10),
+    )
+    with engine.begin() as conn:
+        event_count = _count(conn, events_table)
+        weather_count = _count(conn, weather_observations_table)
+        snapshot_count = _count(conn, event_feature_snapshots_table)
+    assert event_count > 0
+    assert weather_count >= 24
+    assert snapshot_count > 0
+    assert dataset_path.exists()
+    assert summary["dataset_rows"] >= 1
 

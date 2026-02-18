@@ -30,6 +30,7 @@ def sync_weather(
     database_url: Optional[str] = None,
     location_name: Optional[str] = None,
     reference: Optional[date] = None,
+    offline: bool = False,
 ) -> Dict[str, int]:
     if past_days < 0 or future_days < 0:
         raise ValueError("past_days and future_days must be >= 0")
@@ -43,17 +44,30 @@ def sync_weather(
         engine = create_engine(database_url, future=True)
     metadata.create_all(engine)
     repo = WeatherRepository(engine)
-    provider = provider or _resolve_weather_provider()
+    provider = provider or _resolve_weather_provider(offline=offline)
     reference = reference or datetime.now(timezone.utc).date()
     start_day = reference - timedelta(days=past_days)
     end_day = reference + timedelta(days=future_days)
-    observations = provider.fetch_hourly(
-        lat=lat,
-        lon=lon,
-        start=start_day,
-        end=end_day,
-        location_name=location_name,
-    )
+    try:
+        observations = provider.fetch_hourly(
+            lat=lat,
+            lon=lon,
+            start=start_day,
+            end=end_day,
+            location_name=location_name,
+        )
+    except Exception as exc:
+        if not offline:
+            print(f"[sync_weather] WARNING: provider failed ({exc}); falling back to offline dataset")
+            observations = _DemoWeatherProvider().fetch_hourly(
+                lat=lat,
+                lon=lon,
+                start=start_day,
+                end=end_day,
+                location_name=location_name,
+            )
+        else:
+            raise
     result = repo.upsert_many(_normalize_records(observations))
     _log_summary(lat, lon, result, start_day, end_day)
     return result
@@ -66,9 +80,10 @@ def run(
     past_days: int = typer.Option(0, help="Days to backfill"),
     future_days: int = typer.Option(1, help="Days forward"),
     location_name: Optional[str] = typer.Option(None, help="Label for stored observations"),
+    offline: bool = typer.Option(False, help="Forzar dataset offline"),
 ):
     """CLI entrypoint for weather sync."""
-    sync_weather(lat=lat, lon=lon, past_days=past_days, future_days=future_days, location_name=location_name)
+    sync_weather(lat=lat, lon=lon, past_days=past_days, future_days=future_days, location_name=location_name, offline=offline)
 
 
 def _normalize_records(observations: Iterable[ExternalWeatherHour]):
@@ -108,11 +123,14 @@ def _log_summary(lat: float, lon: float, stats: Dict[str, int], start: date, end
     )
 
 
-def _resolve_weather_provider() -> WeatherProvider:
+def _resolve_weather_provider(*, offline: bool = False) -> WeatherProvider:
+    if offline:
+        return _DemoWeatherProvider()
     mode = (os.getenv("SYNC_WEATHER_PROVIDER") or "demo").lower()
     if mode in {"open-meteo", "open_meteo", "online"}:
         return OpenMeteoWeatherProvider()
     return _DemoWeatherProvider()
+
 
 class _DemoWeatherProvider:
     def fetch_hourly(
