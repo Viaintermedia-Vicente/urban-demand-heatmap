@@ -93,6 +93,18 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
 ### Quick check
 - `cd backend && scripts/quick_check.sh` (genera datos, dataset y modelo, dejando el log en `run_logs/last_run.log`).
 
+
+### Sync de eventos y meteorología
+- **Jobs individuales** (desde `backend/`):
+  - `python -m app.jobs.sync_weather --lat 40.4168 --lon -3.7038 --past-days 1 --future-days 2 --location-name Madrid`
+  - `python -m app.jobs.sync_events --city Madrid --past-days 7 --future-days 7`
+- **Providers**:
+  - Meteo: por defecto usa un dataset demo offline. Para consumir Open-Meteo en vivo exporta `SYNC_WEATHER_PROVIDER=open-meteo` (no requiere API key).
+  - Eventos: define `TICKETMASTER_API_KEY=<tu_api_key>` para activar el provider real. Si no existe, se usa el generador demo/backfill.
+- **Backfill / histórico**: los flags `--past-days` y `--future-days` existen en ambos jobs para rellenar histórico y pronóstico sin duplicar datos (upsert idempotente por `source + external_id` y `source + lat+lon + observed_at`).
+- **Scripts cron-safe**: `backend/scripts/cron_sync_weather.sh` y `backend/scripts/cron_sync_events.sh` encapsulan la activación del entorno, `DATABASE_URL` (por defecto `../tmp_dev.db`) y parámetros básicos. Añádelos a tu cron/planificador (Plesk) invocando `bash backend/scripts/cron_sync_*.sh`.
+- **Plesk / Docker**: en contenedores puedes ejecutar `docker compose exec backend bash scripts/cron_sync_weather.sh` y lo mismo para eventos. Configura las variables de entorno (`DATABASE_URL`, `TICKETMASTER_API_KEY`, etc.) en el servicio antes de ejecutar.
+
 ### Run pipeline (copy/paste safe)
 ```bash
 : "# Activate virtualenv"
