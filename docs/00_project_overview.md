@@ -11,7 +11,7 @@ Las grandes ciudades experimentan picos de afluencia difíciles de anticipar, lo
 ## Motivación
 - La IA permite combinar datos históricos y streams en tiempo real para generar modelos explicables que apoyan la toma de decisiones públicas y privadas.
 - Se busca un sistema predictivo que sirva como asistencia para operadores de planificación, evitando decisiones reactivas.
-- El enfoque tiene aplicabilidad transversal en movilidad, ocio, turismo, VTC y seguridad ciudadana, aportando valor a múltiples actores.
+- El enfoque tiene aplicabilidad transversal en movilidad, ocio, turismo y seguridad ciudadana, aportando valor a múltiples actores.
 
 ## Objetivo general
 Diseñar y desarrollar un sistema capaz de predecir zonas de alta actividad urbana basándose en eventos y contexto temporal, ofreciendo visualizaciones y recomendaciones accionables.

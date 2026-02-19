@@ -19,6 +19,7 @@ services:
       DATABASE_URL: postgresql://hotspots_user:hotspots_pass@db:5432/hotspots
       TZ: Europe/Madrid
       MODEL_DIR: /app
+      TICKETMASTER_API_KEY: ${TICKETMASTER_API_KEY}
     ports:
       - "8000:8000"
     depends_on:

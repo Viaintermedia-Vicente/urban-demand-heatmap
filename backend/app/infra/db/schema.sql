@@ -46,6 +46,8 @@ CREATE TABLE IF NOT EXISTS events (
     popularity_score DOUBLE PRECISION,
     created_at TIMESTAMPTZ DEFAULT now(),
     updated_at TIMESTAMPTZ DEFAULT now(),
+    last_synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    is_active BOOLEAN NOT NULL DEFAULT true,
     UNIQUE (source, external_id)
 );
 

@@ -33,12 +33,26 @@ function App() {
 
   const [hotspots, setHotspots] = useState<HeatmapHotspot[]>([]);
   const [events, setEvents] = useState<EventSummary[]>([]);
-  const [targetLabel, setTargetLabel] = useState<string>("");
-  const [weatherLabel, setWeatherLabel] = useState<string>("");
+  const [targetDisplay, setTargetDisplay] = useState<string>("Sin datos");
+  const [weatherSummary, setWeatherSummary] = useState<string>("");
+  const [displayHour, setDisplayHour] = useState(hour);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const mapRef = useRef<LeafletMap | null>(null);
+  const madridFormatter = useMemo(
+    () =>
+      new Intl.DateTimeFormat("es-ES", {
+        weekday: "long",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "numeric",
+        hour12: false,
+        timeZone: "Europe/Madrid",
+      }),
+    []
+  );
 
   useEffect(() => {
     const controller = new AbortController();
@@ -59,18 +73,16 @@ function App() {
         ]);
         if (!controller.signal.aborted) {
           setHotspots(heatmap.hotspots ?? []);
-          setTargetLabel(new Date(heatmap.target).toLocaleString());
-          const w = heatmap.weather;
-          if (w) {
-            const parts = [
-              w.temperature_c != null ? `${w.temperature_c.toFixed(1)}ºC` : undefined,
-              w.precipitation_mm != null ? `${w.precipitation_mm.toFixed(1)} mm` : undefined,
-              w.wind_speed_kmh != null ? `${w.wind_speed_kmh.toFixed(0)} km/h` : undefined,
-            ].filter(Boolean);
-            setWeatherLabel(parts.join(" · "));
+          const targetInfo = formatTargetMetadata(heatmap.target, madridFormatter);
+          if (targetInfo) {
+            setTargetDisplay(targetInfo.label);
+            setDisplayHour(targetInfo.hour);
           } else {
-            setWeatherLabel("");
+            setTargetDisplay("Sin datos");
+            setDisplayHour(hour);
           }
+          const w = heatmap.weather;
+          setWeatherSummary(buildWeatherSummary(w, targetInfo?.hour ?? hour));
           setEvents(eventsData);
         }
       } catch (err) {
@@ -177,11 +189,11 @@ function App() {
       <main className="layout">
         <section className="map-column">
           <div className="map-meta">
-            <span>
-              {targetLabel ? `Target: ${targetLabel}` : "Sin datos"}
-              {mode === "ml" ? " · modo ML" : ""}
+            <span className="map-meta__target">
+              {targetDisplay}
+              {mode === "ml" && <span className="map-meta__badge">Modo ML</span>}
             </span>
-            {weatherLabel && <span>{weatherLabel}</span>}
+            {weatherSummary && <span className="map-meta__weather">{weatherSummary}</span>}
           </div>
           <MapContainer
             center={selectedRegion.center}
@@ -224,14 +236,18 @@ function App() {
             })}
           </MapContainer>
           <div className="hour-slider" aria-live="polite">
-            <label htmlFor="hourRange">Hora: {hour.toString().padStart(2, "0")}:00</label>
+            <label htmlFor="hourRange">Hora: {displayHour.toString().padStart(2, "0")}h</label>
             <input
               id="hourRange"
               type="range"
               min={0}
               max={23}
               value={hour}
-              onChange={(e) => setHour(Number(e.target.value))}
+              onChange={(e) => {
+                const value = Number(e.target.value);
+                setHour(value);
+                setDisplayHour(value);
+              }}
             />
           </div>
         </section>
@@ -315,3 +331,41 @@ function Tooltip({ text }: TooltipProps) {
 }
 
 export default App;
+
+function formatTargetMetadata(targetIso: string | undefined, formatter: Intl.DateTimeFormat) {
+  if (!targetIso) return null;
+  const date = new Date(targetIso);
+  const parts = formatter.formatToParts(date);
+  const partsMap = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  const weekday = capitalize(partsMap.weekday ?? "");
+  const day = partsMap.day ?? "";
+  const month = capitalize(partsMap.month ?? "");
+  const year = partsMap.year ?? "";
+  const hour = Number(partsMap.hour ?? "0");
+  const label = `${weekday} · ${day} ${month} ${year} · ${hour}h`;
+  return { label, hour };
+}
+
+function capitalize(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function buildWeatherSummary(weather: any, localHour: number) {
+  if (!weather) return "";
+  const icon = getWeatherIcon(weather, localHour);
+  const temp = weather.temperature_c != null ? `${weather.temperature_c.toFixed(1)}ºC` : "N/D";
+  const rainAmount = weather.precipitation_mm != null ? weather.precipitation_mm.toFixed(1) : "0.0";
+  const wind = weather.wind_speed_kmh != null ? `${weather.wind_speed_kmh.toFixed(0)} km/h` : "N/D";
+  return `${icon} ${temp}   🌧 ${rainAmount} mm   💨 ${wind}`;
+}
+
+function getWeatherIcon(weather: any, localHour: number) {
+  if (weather?.precipitation_mm != null && weather.precipitation_mm > 0) {
+    return "🌧";
+  }
+  if (localHour >= 7 && localHour <= 19) {
+    return "☀";
+  }
+  return "🌙";
+}

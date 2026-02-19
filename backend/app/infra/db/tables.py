@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, MetaData, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, MetaData, Table, Text, UniqueConstraint, text
 
 metadata = MetaData()
 
@@ -57,6 +57,9 @@ events_table = Table(
     Column("popularity_score", Float),
     Column("created_at", DateTime(timezone=True)),
     Column("updated_at", DateTime(timezone=True)),
+    Column("last_synced_at", DateTime(timezone=True), nullable=False, server_default=text("CURRENT_TIMESTAMP")),
+    Column("is_active", Boolean, nullable=False, server_default=text("TRUE")),
+    UniqueConstraint("source", "external_id", name="uq_events_source_external_id"),
 )
 
 

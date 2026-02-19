@@ -48,13 +48,22 @@ class TicketmasterEventsProvider(EventsProvider):
             data = resp.json()
         embedded = data.get("_embedded", {})
         events = embedded.get("events", [])
-        results: List[ExternalEvent] = []
+        return self._process_events(events)
+
+    def _process_events(self, events: list[dict]) -> tuple[list[ExternalEvent], dict]:
+        mapped: List[ExternalEvent] = []
+        stats = {"fetched": len(events), "mapped": 0, "skipped_no_coords": 0}
         for item in events:
             try:
-                results.append(self._map_event(item))
+                event = self._map_event(item)
             except Exception:
                 continue
-        return results
+            if event is None:
+                stats["skipped_no_coords"] += 1
+                continue
+            mapped.append(event)
+        stats["mapped"] = len(mapped)
+        return mapped, stats
 
     def _map_event(self, payload: dict) -> ExternalEvent:
         dates = payload.get("dates", {})
@@ -65,6 +74,14 @@ class TicketmasterEventsProvider(EventsProvider):
         if venues:
             venue = venues[0]
         location = (venue or {}).get("location", {})
+        if location:
+            try:
+                lat = float(location.get("latitude"))
+                lon = float(location.get("longitude"))
+            except (TypeError, ValueError):
+                return None
+        else:
+            return None
         classification = (payload.get("classifications") or [{}])[0]
         segment = (classification.get("segment") or {}).get("name")
         genre = (classification.get("genre") or {}).get("name")
@@ -88,8 +105,8 @@ class TicketmasterEventsProvider(EventsProvider):
             venue_external_id=(venue or {}).get("id"),
             venue_city=(venue or {}).get("city", {}).get("name"),
             venue_country=(venue or {}).get("country", {}).get("countryCode"),
-            lat=float(location.get("latitude")) if location.get("latitude") else None,
-            lon=float(location.get("longitude")) if location.get("longitude") else None,
+            lat=lat,
+            lon=lon,
             timezone=(venue or {}).get("timezone") or (start.tzinfo.tzname(None) if start.tzinfo else "UTC"),
             popularity_score=popularity,
         )
@@ -109,5 +126,5 @@ class TicketmasterEventsProvider(EventsProvider):
 
     @staticmethod
     def _format_ts(value: datetime) -> str:
-        value = value.astimezone(timezone.utc)
-        return value.isoformat().replace("+00:00", "Z")
+        value = value.astimezone(timezone.utc).replace(microsecond=0)
+        return value.strftime("%Y-%m-%dT%H:%M:%SZ")

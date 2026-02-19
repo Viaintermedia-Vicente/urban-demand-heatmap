@@ -26,6 +26,7 @@ EVENT_COLUMNS = [
     "url",
     "expected_attendance",
     "popularity_score",
+    "is_active",
 ]
 
 
@@ -38,6 +39,8 @@ class EventsRepository:
 
     def upsert_event(self, event_data: Dict[str, Any]) -> int:
         resolved = {col: event_data.get(col) for col in EVENT_COLUMNS}
+        if resolved.get("is_active") is None:
+            resolved["is_active"] = True
         if not resolved.get("venue_id"):
             resolved["venue_id"] = self._resolve_venue_id(event_data)
         now = datetime.now(timezone.utc)
@@ -52,11 +55,11 @@ class EventsRepository:
                 conn.execute(
                     update(events_table)
                     .where(events_table.c.id == existing)
-                    .values(**resolved, updated_at=now)
+                    .values(**resolved, updated_at=now, last_synced_at=now)
                 )
                 return existing
             result = conn.execute(
-                insert(events_table).values(**resolved, created_at=now, updated_at=now)
+                insert(events_table).values(**resolved, created_at=now, updated_at=now, last_synced_at=now)
             )
             return result.inserted_primary_key[0]
 
