@@ -19,3 +19,4 @@ tmp_dev.db
 **/dataset.csv
 model*.json
 run_logs/
+docker/.env
