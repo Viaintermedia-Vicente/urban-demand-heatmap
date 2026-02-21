@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap } from "leaflet";
+import L from "leaflet";
 import { Circle, MapContainer, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -22,22 +23,51 @@ const REGIONS: RegionOption[] = [
   { id: "malaga", label: "Málaga", center: [36.7213, -4.4214] },
 ];
 
+const HOTSPOT_EVENT_RADIUS_M = 1500;
+
 function App() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
   const [selectedRegionId, setSelectedRegionId] = useState(REGIONS[0].id);
   const selectedRegion = REGIONS.find((region) => region.id === selectedRegionId) ?? REGIONS[0];
   const [date, setDate] = useState(today);
   const [hour, setHour] = useState(22);
+  const [radius, setRadius] = useState(300);
   const [mode, setMode] = useState<HeatmapMode>("heuristic");
   const [refreshToken, setRefreshToken] = useState(0);
 
   const [hotspots, setHotspots] = useState<HeatmapHotspot[]>([]);
+  const uniqueHotspots = useMemo(() => {
+    const m = new Map<string, HeatmapHotspot>();
+    for (const spot of hotspots) {
+      const key = `${spot.lat.toFixed(5)}:${spot.lon.toFixed(5)}`;
+      const prev = m.get(key);
+      if (!prev || spot.score > prev.score) m.set(key, spot);
+    }
+    return Array.from(m.values()).sort((a, b) => b.score - a.score);
+  }, [hotspots]);
+  const densityCounts = useMemo(() => {
+    let high = 0, medium = 0, low = 0;
+    uniqueHotspots.forEach((spot) => {
+      const level = classify(spot.score);
+      if (level === "HIGH") high += 1;
+      else if (level === "MEDIUM") medium += 1;
+      else low += 1;
+    });
+    return { high, medium, low, all: uniqueHotspots.length };
+  }, [uniqueHotspots]);
+
+  const [densityFilter, setDensityFilter] = useState<Density>("ALL");
   const [events, setEvents] = useState<EventSummary[]>([]);
   const [targetDisplay, setTargetDisplay] = useState<string>("Sin datos");
   const [weatherSummary, setWeatherSummary] = useState<string>("");
   const [displayHour, setDisplayHour] = useState(hour);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const intensityScore = useMemo(() => {
+    if (!hotspots.length) return null;
+    return Math.max(...hotspots.map((spot) => spot.score));
+  }, [hotspots]);
+  const intensityLabel = intensityScore != null ? labelScore(intensityScore) : "Sin datos";
 
   const mapRef = useRef<LeafletMap | null>(null);
   const madridFormatter = useMemo(
@@ -73,6 +103,7 @@ function App() {
         ]);
         if (!controller.signal.aborted) {
           setHotspots(heatmap.hotspots ?? []);
+          setEvents(eventsData);
           const targetInfo = formatTargetMetadata(heatmap.target, madridFormatter);
           if (targetInfo) {
             setTargetDisplay(targetInfo.label);
@@ -83,7 +114,6 @@ function App() {
           }
           const w = heatmap.weather;
           setWeatherSummary(buildWeatherSummary(w, targetInfo?.hour ?? hour));
-          setEvents(eventsData);
         }
       } catch (err) {
         if (!controller.signal.aborted) {
@@ -108,18 +138,22 @@ function App() {
     }
   }, [selectedRegion]);
 
-  const handleSelectHotspot = (spot: HeatmapHotspot) => {
+  const handleHotspotClick = useCallback((spot: HeatmapHotspot) => {
     const map = mapRef.current;
-    if (map) {
-      map.flyTo([spot.lat, spot.lon], Math.max(map.getZoom(), 14), { duration: 0.75 });
-    }
-  };
+    if (!map) return;
+    map.flyTo([spot.lat, spot.lon], Math.max(map.getZoom(), 14), { duration: 0.75 });
+  }, []);
+
+  const filteredHotspots = useMemo(() => {
+    if (densityFilter === "ALL") return uniqueHotspots;
+    return uniqueHotspots.filter((h) => classify(h.score) === densityFilter);
+  }, [densityFilter, uniqueHotspots]);
 
   return (
     <div className="app">
       <div className="app__intro">
         <h1>Heatmap TFM</h1>
-        <p>Explora hotspots urbanos y eventos estimados.</p>
+        <p>Explora hotspots urbanos y eventos estimados · vista TS.</p>
       </div>
       <form
         className="controls-row"
@@ -195,114 +229,149 @@ function App() {
             </span>
             {weatherSummary && <span className="map-meta__weather">{weatherSummary}</span>}
           </div>
-          <MapContainer
-            center={selectedRegion.center}
-            zoom={12}
-            className="map"
-            ref={mapRef}
-          >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
-            {hotspots.map((spot, index) => {
-              const color = getScoreColor(spot.score);
-              return (
-                <Circle
-                  key={`${spot.lat}-${spot.lon}-${index}`}
-                  center={[spot.lat, spot.lon]}
-                  radius={spot.radius_m}
-                  pathOptions={{ color, fillColor: color, fillOpacity: 0.35 }}
-                  eventHandlers={{ click: () => handleSelectHotspot(spot) }}
-                >
-                  <Popup>
-                    <div className="popup">
-                      <strong>Score:</strong> {spot.score.toFixed(3)}
-                      <br />
-                      <strong>Radio:</strong> {spot.radius_m.toFixed(0)} m
-                      {spot.lead_time_min_pred != null && (
-                        <>
-                          <br />
-                          <strong>Lead time:</strong> {spot.lead_time_min_pred.toFixed(1)} min
-                        </>
-                      )}
-                      {spot.attendance_factor_pred != null && (
-                        <>
-                          <br />
-                          <strong>Factor asistencia:</strong> {spot.attendance_factor_pred.toFixed(2)}
-                        </>
-                      )}
-                    </div>
-                  </Popup>
-                </Circle>
-              );
-            })}
-          </MapContainer>
-          <div className="hour-slider" aria-live="polite">
-            <label htmlFor="hourRange">Hora: {displayHour.toString().padStart(2, "0")}h</label>
-            <input
-              id="hourRange"
-              type="range"
-              min={0}
-              max={23}
-              value={hour}
-              onChange={(e) => {
-                const value = Number(e.target.value);
-                setHour(value);
-                setDisplayHour(value);
-              }}
-            />
+          <div className="map-wrapper">
+            <MapContainer
+              center={selectedRegion.center}
+              zoom={12}
+              className="map"
+              ref={mapRef}
+            >
+              <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
+              {filteredHotspots.map((spot, index) => {
+                const level = classify(spot.score);
+                const color = DENSITY_COLORS[level];
+                const options = {
+                  color: "#111827",
+                  weight: level === "HIGH" ? 2 : 1,
+                  fillColor: color,
+                  fillOpacity: level === "HIGH" ? 0.55 : level === "MEDIUM" ? 0.45 : 0.35,
+                  opacity: 0.9,
+                };
+                return (
+                  <Circle
+                    key={`${spot.lat}-${spot.lon}-${index}`}
+                    center={[spot.lat, spot.lon]}
+                    radius={spot.radius_m}
+                    pathOptions={options}
+                    eventHandlers={{
+                      click: (leafletEvent) => {
+                        leafletEvent.originalEvent?.stopPropagation?.();
+                        handleHotspotClick(spot);
+                      },
+                    }}
+                  >
+                    <Popup>
+                      <div className="popup">
+                        <strong>Score:</strong> {spot.score.toFixed(3)}
+                        <br />
+                        <strong>Radio:</strong> {spot.radius_m.toFixed(0)} m
+                        {spot.lead_time_min_pred != null && (
+                          <>
+                            <br />
+                            <strong>Lead time:</strong> {spot.lead_time_min_pred.toFixed(1)} min
+                          </>
+                        )}
+                        {spot.attendance_factor_pred != null && (
+                          <>
+                            <br />
+                            <strong>Factor asistencia:</strong> {spot.attendance_factor_pred.toFixed(2)}
+                          </>
+                        )}
+                      </div>
+                    </Popup>
+                  </Circle>
+                );
+              })}
+            </MapContainer>
+            <div className="map-legend" title="Clasificación por score relativo">
+              <div><span className="legend-dot legend-dot--high" /> Alta</div>
+              <div><span className="legend-dot legend-dot--medium" /> Media</div>
+              <div><span className="legend-dot legend-dot--low" /> Baja</div>
+            </div>
           </div>
-        </section>
+            <div className="map-controls">
+              <div className="hour-row" aria-live="polite">
+                <div className="hour-slider">
+                  <label htmlFor="hourRange">Hora: {displayHour.toString().padStart(2, "0")}h</label>
+                  <input
+                    id="hourRange"
+                    type="range"
+                    min={0}
+                    max={23}
+                    value={hour}
+                    onChange={(e) => {
+                      const value = Number(e.target.value);
+                      setHour(value);
+                      setDisplayHour(value);
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
 
         <section className="sidebar">
           {loading && <div className="notice">Cargando datos…</div>}
           {error && <div className="notice notice--error">{error}</div>}
 
-          <div className="panel">
-            <h2>Hotspots ({hotspots.length})</h2>
-            {hotspots.length === 0 && <p className="muted">Sin hotspots para esta hora.</p>}
-            <ul className="list">
-              {hotspots.map((spot, index) => (
-                <li key={`spot-${index}`}>
-                  <button className="card" onClick={() => handleSelectHotspot(spot)}>
-                    <div>
-                      <strong>Score:</strong> {spot.score.toFixed(3)}
-                    </div>
-                    <div>
-                      <strong>Radio:</strong> {spot.radius_m.toFixed(0)} m
-                    </div>
-                    {mode === "ml" && (
-                      <div className="card__metrics">
-                        LT: {spot.lead_time_min_pred?.toFixed(1) ?? "-"} min · AF: {spot.attendance_factor_pred?.toFixed(2) ?? "-"}
+          <div className="side-panel">
+            <div className="side-panel__header panel__header">
+              <h2>Eventos ({events.length})</h2>
+            </div>
+            <div className="side-panel__body">
+              <ul className="list">
+                {events.map((event, index) => {
+                  return (
+                    <li key={`event-${index}`}>
+                    <button
+                      type="button"
+                      className="card card--flat"
+                      disabled
+                    >
+                      <div className="event-title">{event.title}</div>
+                      <div className="event-meta">
+                        {event.start_dt ? new Date(event.start_dt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Hora N/D"}
+                        {event.venue_name ? ` · ${event.venue_name}` : ""}
                       </div>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="panel">
-            <h2>Eventos ({events.length})</h2>
-            {events.length === 0 && <p className="muted">Sin eventos disponibles.</p>}
-            <ul className="list">
-              {events.map((event, index) => (
-                <li key={`event-${index}`} className="card card--flat">
-                  <div className="event-title">{event.title}</div>
-                  <div className="event-meta">
-                    {new Date(event.start_dt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                    {event.venue_name ? ` · ${event.venue_name}` : ""}
-                  </div>
-                  <div className="event-meta">
-                    {event.category}
-                    {event.expected_attendance ? ` · Est.: ${event.expected_attendance}` : ""}
-                  </div>
-                </li>
-              ))}
-            </ul>
+                      <div className="event-meta">
+                        {event.distance_m?.toFixed(0) ?? "--"} m · {normalizeSourceLabel(event.source)}
+                      </div>
+                      {event.url && (
+                        <div className="event-meta">
+                          <a href={event.url} target="_blank" rel="noopener noreferrer">Ver evento</a>
+                        </div>
+                      )}
+                    </button>
+                  </li>
+                  );
+                })}
+              </ul>
+            </div>
+            <div className="side-panel__footer hotspot-strip-row">
+              <DensityFilterBar value={densityFilter} onChange={setDensityFilter} counts={densityCounts} />
+            </div>
           </div>
         </section>
       </main>
     </div>
   );
+}
+
+function normalizeSourceLabel(source: string | null | undefined) {
+  if (!source) return "Fuente N/D";
+  return source.toLowerCase() === "unknown" ? "Fuente N/D" : source;
+}
+
+type HotspotPillProps = {
+  spot: HeatmapHotspot;
+  active: boolean;
+  onSelect: () => void;
+};
+
+function labelScore(score: number): "Baja" | "Media" | "Alta" {
+  if (score < 0.8) return "Baja";
+  if (score < 1.4) return "Media";
+  return "Alta";
 }
 
 function getScoreColor(score: number) {
@@ -332,6 +401,10 @@ function Tooltip({ text }: TooltipProps) {
 
 export default App;
 
+type MapClickCaptureProps = {
+  onMapClick: (lat: number, lon: number) => void;
+};
+
 function formatTargetMetadata(targetIso: string | undefined, formatter: Intl.DateTimeFormat) {
   if (!targetIso) return null;
   const date = new Date(targetIso);
@@ -351,6 +424,10 @@ function capitalize(value: string) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function makeHotspotKey(spot: HeatmapHotspot) {
+  return `${spot.lat.toFixed(5)}:${spot.lon.toFixed(5)}`;
+}
+
 function buildWeatherSummary(weather: any, localHour: number) {
   if (!weather) return "";
   const icon = getWeatherIcon(weather, localHour);
@@ -368,4 +445,53 @@ function getWeatherIcon(weather: any, localHour: number) {
     return "☀";
   }
   return "🌙";
+}
+
+type DensityLevel = "HIGH" | "MEDIUM" | "LOW";
+type Density = "ALL" | DensityLevel;
+
+const DENSITY_COLORS: Record<DensityLevel, string> = {
+  HIGH: "#ef4444",
+  MEDIUM: "#f59e0b",
+  LOW: "#22c55e",
+} as const;
+
+function classify(score: number): DensityLevel {
+  if (score >= 0.66) return "HIGH";
+  if (score >= 0.33) return "MEDIUM";
+  return "LOW";
+}
+
+type DensityFilterBarProps = {
+  value: Density;
+  onChange: (value: Density) => void;
+  counts: { all: number; high: number; medium: number; low: number };
+};
+
+function DensityFilterBar({ value, onChange, counts }: DensityFilterBarProps) {
+  const options: Array<{ label: string; value: Density; color: string; emoji: string; count: number }> = [
+    { label: "Todas", value: "ALL", color: "#0f172a", emoji: "⚪", count: counts.all },
+    { label: "Alta", value: "HIGH", color: "#ef4444", emoji: "🔴", count: counts.high },
+    { label: "Media", value: "MEDIUM", color: "#f59e0b", emoji: "🟡", count: counts.medium },
+    { label: "Baja", value: "LOW", color: "#22c55e", emoji: "🟢", count: counts.low },
+  ];
+  return (
+    <div className="density-filter">
+      {options.map((opt) => {
+        const active = value === opt.value;
+        return (
+          <button
+            key={opt.value}
+            type="button"
+            className={`density-filter__btn${active ? " density-filter__btn--active" : ""}`}
+            onClick={() => onChange(opt.value)}
+            style={{ borderColor: active ? opt.color : "transparent" }}
+          >
+            <span className="density-filter__emoji">{opt.emoji}</span>
+            {opt.label} ({opt.count})
+          </button>
+        );
+      })}
+    </div>
+  );
 }
