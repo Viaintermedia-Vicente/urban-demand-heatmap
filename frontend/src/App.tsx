@@ -63,6 +63,7 @@ function App() {
   const [displayHour, setDisplayHour] = useState(hour);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
   const intensityScore = useMemo(() => {
     if (!hotspots.length) return null;
     return Math.max(...hotspots.map((spot) => spot.score));
@@ -142,6 +143,14 @@ function App() {
     const map = mapRef.current;
     if (!map) return;
     map.flyTo([spot.lat, spot.lon], Math.max(map.getZoom(), 14), { duration: 0.75 });
+  }, []);
+
+  const handleEventClick = useCallback((event: EventSummary) => {
+    setExpandedEventId((prev) => (prev === event.id ? null : event.id ?? null));
+    if (event.lat != null && event.lon != null) {
+      const map = mapRef.current;
+      if (map) map.flyTo([event.lat, event.lon], Math.max(map.getZoom(), 14), { duration: 0.75 });
+    }
   }, []);
 
   const filteredHotspots = useMemo(() => {
@@ -321,24 +330,55 @@ function App() {
             <div className="side-panel__body">
               <ul className="list">
                 {events.map((event, index) => {
+                  const metaParts = [
+                    event.venue_name,
+                    event.city || event.address,
+                    event.category,
+                  ].filter(Boolean);
+                  const isExpanded = expandedEventId === event.id;
                   return (
                     <li key={`event-${index}`}>
                     <button
                       type="button"
                       className="card card--flat"
-                      disabled
+                      onClick={() => handleEventClick(event)}
                     >
                       <div className="event-title">{event.title}</div>
                       <div className="event-meta">
                         {event.start_dt ? new Date(event.start_dt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Hora N/D"}
                         {event.venue_name ? ` · ${event.venue_name}` : ""}
                       </div>
-                      <div className="event-meta">
-                        {event.distance_m?.toFixed(0) ?? "--"} m · {normalizeSourceLabel(event.source)}
-                      </div>
-                      {event.url && (
-                        <div className="event-meta">
-                          <a href={event.url} target="_blank" rel="noopener noreferrer">Ver evento</a>
+                      {metaParts.length > 0 && (
+                        <div className="event-meta">{metaParts.join(" · ")}</div>
+                      )}
+                      {isExpanded && (
+                        <div className="event-detail">
+                          {event.description && <p className="event-desc">{event.description}</p>}
+                          <div className="event-detail__grid">
+                            {event.start_dt && (
+                              <span><strong>Inicio:</strong> {new Date(event.start_dt).toLocaleString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>
+                            )}
+                            {event.end_dt && (
+                              <span><strong>Fin:</strong> {new Date(event.end_dt).toLocaleString("es-ES", { hour: "2-digit", minute: "2-digit" })}</span>
+                            )}
+                            {event.venue_name && <span><strong>Venue:</strong> {event.venue_name}</span>}
+                            {event.address && <span><strong>Dirección:</strong> {event.address}</span>}
+                            {event.price && <span><strong>Precio:</strong> {event.price}</span>}
+                            {event.organizer && <span><strong>Organizador:</strong> {event.organizer}</span>}
+                          </div>
+                          {event.url && (
+                            <div className="event-link">
+                              <a
+                                href={event.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="event-link__anchor"
+                              >
+                                Ver evento
+                              </a>
+                            </div>
+                          )}
                         </div>
                       )}
                     </button>
