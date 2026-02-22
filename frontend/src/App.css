@@ -195,6 +195,23 @@ fieldset {
 .legend-dot--medium { background: #f59e0b; }
 .legend-dot--low { background: #22c55e; }
 
+.event-marker {
+  filter: drop-shadow(0 1px 4px rgba(0,0,0,0.25));
+}
+
+.event-marker__dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+}
+
+.event-marker--selected .event-marker__dot {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #0f172a;
+}
+
 .hour-slider {
   margin-top: 0.65rem;
   background: #fff;
@@ -212,6 +229,33 @@ fieldset {
 
 .hour-slider input[type="range"] {
   accent-color: #2563eb;
+}
+
+.mode-toggle {
+  display: inline-flex;
+  background: #f1f3f6;
+  border-radius: 20px;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+  box-shadow: inset 0 1px 0 rgba(0,0,0,0.04);
+}
+
+.mode-toggle__btn {
+  border: none;
+  background: transparent;
+  padding: 0.45rem 0.9rem;
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 600;
+  color: #374151;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mode-toggle__btn--active {
+  background: #0f172a;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18);
 }
 
 .map-controls {
@@ -334,6 +378,31 @@ fieldset {
 
 .event-link__anchor:hover {
   text-decoration: underline;
+}
+
+.row-space {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.event-source {
+  padding: 0.1rem 0.4rem;
+  border-radius: 8px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.event-badge {
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #166534;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .notice {

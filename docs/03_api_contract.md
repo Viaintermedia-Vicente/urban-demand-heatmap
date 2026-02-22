@@ -4,58 +4,61 @@
 La API REST JSON de `tfm-hotspots` está diseñada para que el frontend web consuma datos de heatmaps y eventos de forma consistente. Todos los endpoints devuelven JSON, usan HTTPS en entornos productivos y añaden un `request_id` para trazabilidad.
 
 ## 2. GET /api/heatmap
-**Descripción**: devuelve los hotspots calculados para una ciudad, fecha y hora específicas.
+**Descripción**: devuelve hotspots predictivos (modo heuristic o ml) para una fecha/hora y posición de referencia.
 
 **Parámetros**
-- `city` (string, requerido)
-- `date` (formato YYYY-MM-DD, requerido)
-- `hour` (entero 0-23, requerido)
-- `categories` (string, lista separada por comas, opcional)
-- `bbox` (string `minLon,minLat,maxLon,maxLat`, opcional)
-
-**Ejemplo de request**
-```
-GET /api/heatmap?city=madrid&date=2026-02-12&hour=18&categories=concierto,teatro
-```
+- `date` (YYYY-MM-DD, requerido)
+- `hour` (0-23, requerido)
+- `lat` (opcional, por defecto 40.4168)
+- `lon` (opcional, por defecto -3.7038)
+- `mode` (`heuristic` | `ml`, por defecto `heuristic`)
 
 **Ejemplo de response**
 ```json
 {
-  "meta": {"request_id": "abc-123"},
-  "data": [
+  "mode": "heuristic",
+  "target": "2026-02-22T22:00:00Z",
+  "weather": {...},
+  "hotspots": [
     {"lat": 40.4203, "lon": -3.7044, "score": 0.87, "radius_m": 220},
     {"lat": 40.4404, "lon": -3.6883, "score": 0.72, "radius_m": 180}
   ]
 }
 ```
-Los puntos se devuelven ordenados por `score` descendente; si se incluye `bbox`, se filtran los resultados dentro de ese rectángulo.
+Nota: este endpoint **no** devuelve eventos.
 
 ## 3. GET /api/events
-**Descripción**: lista los eventos a partir de una hora determinada, filtrados por ciudad y fecha.
+**Descripción**: lista eventos activos a partir de `from_hour` para la fecha dada.
 
 **Parámetros**
-- `city` (string, requerido)
 - `date` (YYYY-MM-DD, requerido)
 - `from_hour` (0-23, requerido)
-- `categories` (lista separada por comas, opcional)
-- `bbox` (opcional)
-- `limit` (opcional, por defecto 50, máximo 200)
-
-**Ejemplo de request**
-```
-GET /api/events?city=madrid&date=2026-02-12&from_hour=17&categories=teatro
-```
 
 **Ejemplo de response**
 ```json
-{
-  "meta": {"request_id": "abc-124", "paging": {"limit": 50, "has_more": false}},
-  "data": [
-    {"event_id": "TEA-1987", "title": "Obra La Vida Moderna", "category": "teatro", "start_dt": "2026-02-12T20:30:00Z", "end_dt": "2026-02-12T23:00:00Z", "lat": 40.4208, "lon": -3.7054, "venue": "Teatro Lope de Vega"}
-  ]
-}
+[
+  {
+    "id": 123,
+    "title": "Concierto en Retiro",
+    "category": "music",
+    "subcategory": null,
+    "start_dt": "2026-02-22T20:30:00Z",
+    "end_dt": "2026-02-22T23:00:00Z",
+    "venue_name": "Auditorio Retiro",
+    "lat": 40.4208,
+    "lon": -3.7054,
+    "url": "https://...",
+    "expected_attendance": 1200,
+    "source": "ticketmaster"
+  }
+]
 ```
-Los eventos siempre se devuelven en orden cronológico ascendente a partir de `from_hour`.
+Categoría se devuelve real cuando existe; si no hay datos, es `null` (nunca `"unknown"`).
+
+## 4. GET /api/hotspot_events
+**Descripción**: eventos cercanos a un punto/fecha/hora dentro de un radio dado.
+
+Parámetros: `date`, `hour`, `lat`, `lon`, `radius_m` (default 300), `limit` (default 20).
 
 ## 4. POST /api/admin/import-events
 **Descripción**: endpoint administrativo para lanzar imports manuales (testing, reproducibilidad).

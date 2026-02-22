@@ -11,6 +11,10 @@ tmp_dev.db
 
 # Node
 **/node_modules/
+frontend/tsconfig.tsbuildinfo
+frontend/.env
+frontend/.env.docker
+dev/
 
 # OS
 .DS_Store
