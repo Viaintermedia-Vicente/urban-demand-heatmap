@@ -74,11 +74,17 @@ class EventsRepository:
 
     def list_events_for_day(self, day: date) -> List[Dict[str, Any]]:
         start, end = self._day_bounds(day)
+        join_stmt = events_table.outerjoin(venues_table, events_table.c.venue_id == venues_table.c.id)
         with self.engine.begin() as conn:
             rows = conn.execute(
-                select(events_table).where(
-                    (events_table.c.start_dt >= start) & (events_table.c.start_dt < end)
+                select(
+                    events_table,
+                    venues_table.c.name.label("venue_name"),
+                    venues_table.c.lat.label("venue_lat"),
+                    venues_table.c.lon.label("venue_lon"),
                 )
+                .select_from(join_stmt)
+                .where((events_table.c.start_dt >= start) & (events_table.c.start_dt < end))
             ).mappings().all()
         return [dict(row) for row in rows]
 
@@ -89,11 +95,20 @@ class EventsRepository:
         with self.engine.begin() as conn:
             rows = conn.execute(
                 select(
+                    events_table.c.id,
                     events_table.c.title,
                     events_table.c.category,
+                    events_table.c.subcategory,
                     events_table.c.start_dt,
+                    events_table.c.end_dt,
+                    events_table.c.lat,
+                    events_table.c.lon,
+                    events_table.c.url,
+                    events_table.c.source,
                     events_table.c.expected_attendance,
                     venues_table.c.name.label("venue_name"),
+                    venues_table.c.lat.label("venue_lat"),
+                    venues_table.c.lon.label("venue_lon"),
                 )
                 .select_from(join_stmt)
                 .where((events_table.c.start_dt >= start) & (events_table.c.start_dt < day_end))

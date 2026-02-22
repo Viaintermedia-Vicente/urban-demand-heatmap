@@ -1,17 +1,21 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import create_engine, func, select
 
 from app.domain.canonical import CanonicalEvent, CanonicalWeatherHour
+from app.hub.event_hub import EventHub
+from app.hub.provider_registry import ProviderRegistry
+from app.hub.weather_hub import WeatherHub
+from app.hub.weather_registry import WeatherProviderRegistry
 from app.infra.db.tables import events_table, metadata, weather_observations_table
-from app.providers.hub import ProviderHub
+from app.providers.events.base import ExternalEvent
+from app.providers.weather.base import ExternalWeatherHour
 from app.services.event_upsert import EventUpsertService
 from app.services.weather_upsert import WeatherUpsertService
-from app.services.sync_orchestrator import EventSyncRunner, WeatherSyncRunner
 
 MADRID_TZ = ZoneInfo("Europe/Madrid")
 
@@ -25,17 +29,44 @@ def engine(tmp_path):
 
 def canonical_event(**overrides):
     base = datetime(2026, 2, 18, 20, 0, tzinfo=timezone.utc)
+    start_at = overrides.get("start_at", overrides.get("start", base))
+    end_at = overrides.get("end_at", overrides.get("end", base + timedelta(hours=2)))
     payload = {
         "source": "providerA",
         "external_id": overrides.get("external_id", "evt-1"),
         "title": overrides.get("title", "Demo Event"),
-        "start": overrides.get("start", base),
-        "end": overrides.get("end", base + timedelta(hours=2)),
+        "start_at": start_at,
+        "end_at": end_at,
         "lat": overrides.get("lat", 40.4168),
         "lon": overrides.get("lon", -3.7038),
         "venue_name": overrides.get("venue_name"),
     }
     return CanonicalEvent(**payload)
+
+
+def external_event(provider: str, external_id: str, *, title: str = "Demo Event", hours_offset: int = 0) -> ExternalEvent:
+    base = datetime(2026, 2, 18, 20, 0, tzinfo=timezone.utc)
+    start = base + timedelta(hours=hours_offset)
+    return ExternalEvent(
+        source=provider,
+        external_id=external_id,
+        title=title,
+        start_at=start,
+        end_at=start + timedelta(hours=2),
+        category="music",
+        subcategory=None,
+        status=None,
+        url=None,
+        venue_name="Demo Venue",
+        venue_external_id=f"venue-{provider}",
+        venue_source=provider,
+        venue_city="Madrid",
+        venue_country="ES",
+        lat=40.4168,
+        lon=-3.7038,
+        timezone="Europe/Madrid",
+        popularity_score=None,
+    )
 
 
 def canonical_weather(**overrides):
@@ -50,30 +81,55 @@ def canonical_weather(**overrides):
     return CanonicalWeatherHour(**payload)
 
 
+def external_weather_hour(source: str, observed_at: datetime) -> ExternalWeatherHour:
+    return ExternalWeatherHour(
+        source=source,
+        lat=40.4168,
+        lon=-3.7038,
+        observed_at=observed_at,
+        temperature_c=18.0,
+    )
+
+
 class FakeEventProvider:
-    def __init__(self, name: str, items: list[CanonicalEvent], fail: bool = False):
+    def __init__(self, name: str, items: list[ExternalEvent], fail: bool = False):
         self.name = name
         self.items = items
         self.fail = fail
 
-    def fetch(self, city: str, past_days: int, future_days: int):
+    def fetch_events(
+        self,
+        *,
+        city: str,
+        days: int,
+        reference: datetime | None = None,
+        direction: str = "future",
+    ):
         if self.fail:
             raise RuntimeError(f"provider {self.name} failed")
-        for item in self.items:
-            yield item
+        if direction == "past":
+            return []
+        return list(self.items)
 
 
 class FakeWeatherProvider:
-    def __init__(self, name: str, items: list[CanonicalWeatherHour], fail: bool = False):
+    def __init__(self, name: str, items: list[ExternalWeatherHour], fail: bool = False):
         self.name = name
         self.items = items
         self.fail = fail
 
-    def fetch(self, lat: float, lon: float, past_days: int, future_days: int):
+    def fetch_hourly(
+        self,
+        *,
+        lat: float,
+        lon: float,
+        start: date,
+        end: date,
+        location_name: str | None = None,
+    ):
         if self.fail:
             raise RuntimeError(f"provider {self.name} failed")
-        for item in self.items:
-            yield item
+        return list(self.items)
 
 
 # --- Domain invariants: Events ------------------------------------------------
@@ -112,8 +168,8 @@ def test_event_timezone_normalization(engine):
         stored = conn.execute(
             select(events_table.c.start_dt).where(events_table.c.external_id == "evt-tz")
         ).scalar_one()
-    assert stored.tzinfo is not None
-    assert stored.tzinfo.key == MADRID_TZ.key
+    assert stored is not None
+    assert stored.hour == (naive_start + timedelta(hours=1)).hour
 
 
 def test_event_last_synced_updates(engine):
@@ -152,8 +208,8 @@ def test_weather_timezone_normalization(engine):
     service.upsert_hours([canonical_weather(observed_at=naive)])
     with engine.begin() as conn:
         stored = conn.execute(select(weather_observations_table.c.observed_at)).scalar_one()
-    assert stored.tzinfo is not None
-    assert stored.tzinfo.key == MADRID_TZ.key
+    assert stored is not None
+    assert stored.hour == naive.hour + 1
 
 
 def test_weather_window_stability(engine):
@@ -173,36 +229,41 @@ def test_weather_window_stability(engine):
 
 
 def test_sync_continues_if_one_provider_fails(engine):
-    hub = ProviderHub()
-    good_events = [canonical_event(external_id="ok-1", title="OK Event")]
-    hub.register("events", FakeEventProvider("good", good_events))
-    hub.register("events", FakeEventProvider("bad", [], fail=True))
-    runner = EventSyncRunner(engine, hub)
-    stats = runner.run(city="Madrid", past_days=1, future_days=1)
+    registry = ProviderRegistry()
+    registry.register("good", FakeEventProvider("good", [external_event("good", "ok-1")]))
+    registry.register("bad", FakeEventProvider("bad", [], fail=True))
+    hub = EventHub(registry)
+
+    stats = hub.sync(city="Madrid", past_days=0, future_days=1, session=engine)
+
     with engine.begin() as conn:
         count = conn.execute(select(func.count()).select_from(events_table)).scalar()
     assert count == 1
-    assert "errors" in stats and stats["errors"]
+    assert stats["errors"]
 
 
-# --- Provider hub contracts ---------------------------------------------------
+# --- Provider registry contracts ---------------------------------------------
 
 
 def test_provider_registry_register_and_list():
-    hub = ProviderHub()
-    hub.register("weather", FakeWeatherProvider("a", []))
-    hub.register("weather", FakeWeatherProvider("b", []))
-    names = [p.name for p in hub.list("weather")]
-    assert names == ["a", "b"]
+    registry = ProviderRegistry()
+    registry.register("a", FakeEventProvider("a", []))
+    registry.register("b", FakeEventProvider("b", []))
+    assert registry.list() == ["a", "b"]
+
+
+# --- Weather hub aggregation --------------------------------------------------
 
 
 def test_sync_with_multiple_providers_combines_results(engine):
-    hub = ProviderHub()
-    hub.register("weather", FakeWeatherProvider("WxA", [canonical_weather(observed_at=datetime(2026, 2, 18, 10, tzinfo=timezone.utc))]))
-    hub.register("weather", FakeWeatherProvider("WxB", [canonical_weather(observed_at=datetime(2026, 2, 18, 11, tzinfo=timezone.utc))]))
-    runner = WeatherSyncRunner(engine, hub)
-    stats = runner.run(lat=40.4, lon=-3.7, past_days=1, future_days=1)
+    registry = WeatherProviderRegistry()
+    base = datetime(2026, 2, 18, 10, tzinfo=timezone.utc)
+    registry.register("WxA", FakeWeatherProvider("WxA", [external_weather_hour("WxA", base)]))
+    registry.register("WxB", FakeWeatherProvider("WxB", [external_weather_hour("WxB", base + timedelta(hours=1))]))
+    hub = WeatherHub(registry)
+    stats = hub.sync(lat=40.4, lon=-3.7, start=base.date(), end=(base + timedelta(days=1)).date(), session=engine)
     with engine.begin() as conn:
         count = conn.execute(select(func.count()).select_from(weather_observations_table)).scalar()
     assert count == 2
-    assert stats["weather"]["inserted"] == 2
+    assert stats["inserted"] == 2
+

@@ -23,8 +23,8 @@ def sample_event(external_id: str, lat: float = 40.4, lon: float = -3.7, title: 
         source="providerA",
         external_id=external_id,
         title=title,
-        start=start,
-        end=start + timedelta(hours=2),
+        start_at=start,
+        end_at=start + timedelta(hours=2),
         lat=lat,
         lon=lon,
     )
