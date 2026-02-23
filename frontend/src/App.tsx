@@ -208,16 +208,8 @@ function App() {
   }, [densityFilter, mergedHotspots]);
 
   const visibleEvents = useMemo(() => {
-    const targetHour = displayHour ?? hour;
-    return [...events]
-      .filter((evt) => {
-        if (!evt.start_dt) return false;
-        const h = new Date(evt.start_dt).getHours();
-        if (Number.isNaN(h)) return false;
-        return h === targetHour;
-      })
-      .sort((a, b) => (a.start_dt ?? "").localeCompare(b.start_dt ?? ""));
-  }, [events, displayHour, hour]);
+    return [...events].sort((a, b) => (a.start_dt ?? "").localeCompare(b.start_dt ?? ""));
+  }, [events]);
 
   const makeEventIcon = useCallback((category: string | null | undefined, selected: boolean) => {
     const color = getEventColor(category);
