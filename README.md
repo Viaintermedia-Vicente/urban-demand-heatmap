@@ -70,6 +70,9 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
 - Licencia propuesta: MIT (pendiente de confirmación).
 - Guía de contribución: PRs vía forks, revisión por pares, convenciones de commit semánticas.
 
+## Presentación (PDF)
+- `docs/Vicente_Garcia_Gonzalez_Proyecto_fin_Master.pdf` — presentación del proyecto (inglés).
+
 ## Dataset y entrenamiento
 - Materializar snapshots para una fecha/hora:
   ```bash
