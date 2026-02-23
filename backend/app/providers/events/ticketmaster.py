@@ -48,7 +48,8 @@ class TicketmasterEventsProvider(EventsProvider):
             data = resp.json()
         embedded = data.get("_embedded", {})
         events = embedded.get("events", [])
-        return self._process_events(events)
+        mapped, _stats = self._process_events(events)
+        return mapped
 
     def _process_events(self, events: list[dict]) -> tuple[list[ExternalEvent], dict]:
         mapped: List[ExternalEvent] = []
