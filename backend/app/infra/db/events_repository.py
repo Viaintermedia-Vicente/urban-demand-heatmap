@@ -112,15 +112,10 @@ class EventsRepository:
             hour_end_utc = (day_start_local + timedelta(days=1)).astimezone(timezone.utc)
         default_duration = timedelta(hours=3)
         join_stmt = events_table.outerjoin(venues_table, events_table.c.venue_id == venues_table.c.id)
+        coalesce_end = func.coalesce(events_table.c.end_dt, events_table.c.start_dt + default_duration)
         filters = [
             events_table.c.start_dt < hour_end_utc,
-            or_(
-                and_(events_table.c.end_dt.isnot(None), events_table.c.end_dt > hour_start_utc),
-                and_(
-                    events_table.c.end_dt.is_(None),
-                    events_table.c.start_dt > hour_start_utc - default_duration,
-                ),
-            ),
+            coalesce_end > hour_start_utc,
         ]
         if city:
             filters.append(func.lower(venues_table.c.city) == city.lower())

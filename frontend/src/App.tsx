@@ -97,15 +97,10 @@ function App() {
           const eventsWithScore = enrichEventsWithHotspotScore(mergedEventsSource, heatmap.hotspots ?? []);
           setEvents(eventsWithScore);
           const targetInfo = formatTargetMetadata(heatmap.target, madridFormatter);
-          if (targetInfo) {
-            setTargetDisplay(targetInfo.label);
-            setDisplayHour(targetInfo.hour);
-          } else {
-            setTargetDisplay("Sin datos");
-            setDisplayHour(hour);
-          }
+          setTargetDisplay(targetInfo?.label ?? "Sin datos");
+          setDisplayHour(hour);
           const w = heatmap.weather;
-          setWeatherSummary(buildWeatherSummary(w, targetInfo?.hour ?? hour));
+          setWeatherSummary(buildWeatherSummary(w, hour));
         }
       } catch (err) {
         if (!controller.signal.aborted) {
