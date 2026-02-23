@@ -207,17 +207,25 @@ function App() {
     return mergedHotspots.filter((h) => classify(h.score) === densityFilter);
   }, [densityFilter, mergedHotspots]);
 
+  const eventHourInMadrid = useCallback((iso: string | null | undefined) => {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    const hStr = new Intl.DateTimeFormat("es-ES", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "Europe/Madrid",
+    }).format(date);
+    const hNum = Number(hStr);
+    return Number.isNaN(hNum) ? null : hNum;
+  }, []);
+
   const visibleEvents = useMemo(() => {
     const targetHour = displayHour ?? hour;
     return [...events]
-      .filter((evt) => {
-        if (!evt.start_dt) return false;
-        const h = new Date(evt.start_dt).getHours();
-        if (Number.isNaN(h)) return false;
-        return h === targetHour;
-      })
+      .filter((evt) => eventHourInMadrid(evt.start_dt) === targetHour)
       .sort((a, b) => (a.start_dt ?? "").localeCompare(b.start_dt ?? ""));
-  }, [events, displayHour, hour]);
+  }, [events, displayHour, hour, eventHourInMadrid]);
 
   const makeEventIcon = useCallback((category: string | null | undefined, selected: boolean) => {
     const color = getEventColor(category);
