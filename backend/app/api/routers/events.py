@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 import math
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, func
+from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
 from app.api.deps import get_engine
@@ -51,38 +51,6 @@ def list_events(
             }
         )
     return response
-
-
-@router.get("/regions")
-def list_regions(engine: Engine = Depends(get_engine)):
-    """
-    Devuelve las regiones disponibles derivadas de las ciudades de los venues.
-    """
-    with engine.begin() as conn:
-        rows = conn.execute(
-            select(
-                func.lower(venues_table.c.city).label("id"),
-                venues_table.c.city.label("label"),
-                func.avg(venues_table.c.lat).label("lat"),
-                func.avg(venues_table.c.lon).label("lon"),
-            )
-            .where(venues_table.c.city.is_not(None))
-            .group_by(venues_table.c.city)
-            .order_by(venues_table.c.city)
-        ).mappings().all()
-    regions = []
-    for row in rows:
-        if row["lat"] is None or row["lon"] is None:
-            continue
-        regions.append(
-            {
-                "id": row["id"],
-                "label": row["label"],
-                "lat": float(row["lat"]),
-                "lon": float(row["lon"]),
-            }
-        )
-    return regions
 
 
 EARTH_RADIUS_M = 6_371_000

@@ -6,25 +6,30 @@ import "leaflet/dist/leaflet.css";
 
 import { fetchHeatmap, type HeatmapEvent, type HeatmapHotspot, type HeatmapMode } from "./api/heatmap";
 import { fetchEvents, type EventSummary } from "./api/events";
-import { fetchRegions } from "./api/regions";
 import "./App.css";
 
 type RegionOption = {
   id: string;
   label: string;
-  lat: number;
-  lon: number;
+  center: [number, number];
 };
+
+const REGIONS: RegionOption[] = [
+  { id: "madrid", label: "Madrid", center: [40.4168, -3.7038] },
+  { id: "barcelona", label: "Barcelona", center: [41.3874, 2.1686] },
+  { id: "valencia", label: "Valencia", center: [39.4699, -0.3763] },
+  { id: "sevilla", label: "Sevilla", center: [37.3891, -5.9845] },
+  { id: "bilbao", label: "Bilbao", center: [43.263, -2.935] },
+  { id: "malaga", label: "Málaga", center: [36.7213, -4.4214] },
+];
 
 const DEFAULT_SELECTION_RADIUS_M = 500;
 const EVENT_MERGE_RADIUS_M = 250;
 
 function App() {
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
-  const fallbackRegion: RegionOption = { id: "madrid", label: "Madrid", lat: 40.4168, lon: -3.7038 };
-  const [regions, setRegions] = useState<RegionOption[]>([]);
-  const [selectedRegionId, setSelectedRegionId] = useState<string>(fallbackRegion.id);
-  const selectedRegion = regions.find((region) => region.id === selectedRegionId) ?? fallbackRegion;
+  const [selectedRegionId, setSelectedRegionId] = useState(REGIONS[0].id);
+  const selectedRegion = REGIONS.find((region) => region.id === selectedRegionId) ?? REGIONS[0];
   const [date, setDate] = useState(today);
   const [hour, setHour] = useState(22);
   const [mode, setMode] = useState<HeatmapMode>("heuristic");
@@ -66,23 +71,6 @@ function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    let cancelled = false;
-
-    async function loadRegions() {
-      try {
-        const loaded = await fetchRegions();
-        if (cancelled) return;
-        setRegions(loaded);
-        if (loaded.length > 0) {
-          setSelectedRegionId((prev) => prev || loaded[0].id);
-        }
-      } catch {
-        if (cancelled) return;
-        setRegions([fallbackRegion]);
-        setSelectedRegionId((prev) => prev || fallbackRegion.id);
-      }
-    }
-
     async function load() {
       setLoading(true);
       setError(null);
@@ -92,8 +80,8 @@ function App() {
             date,
             hour,
             mode,
-            lat: selectedRegion.lat,
-            lon: selectedRegion.lon,
+            lat: selectedRegion.center[0],
+            lon: selectedRegion.center[1],
             signal: controller.signal,
           }),
           fetchEvents({ date, fromHour: hour, signal: controller.signal }).catch(() => [] as EventSummary[]),
@@ -130,12 +118,9 @@ function App() {
       }
     }
 
-    loadRegions().then(load);
-    return () => {
-      cancelled = true;
-      controller.abort();
-    };
-  }, [date, hour, mode, refreshToken, selectedRegion, fallbackRegion, madridFormatter]);
+    load();
+    return () => controller.abort();
+  }, [date, hour, mode, refreshToken, selectedRegion, madridFormatter]);
 
   useEffect(() => {
     setSelectedHotspot(null);
@@ -146,7 +131,7 @@ function App() {
   useEffect(() => {
     const map = mapRef.current;
     if (map) {
-      map.flyTo([selectedRegion.lat, selectedRegion.lon], Math.max(map.getZoom(), 11), { duration: 0.8 });
+      map.flyTo(selectedRegion.center, Math.max(map.getZoom(), 11), { duration: 0.8 });
     }
   }, [selectedRegion]);
 
@@ -243,7 +228,7 @@ function App() {
             onChange={(e) => setSelectedRegionId(e.target.value)}
             aria-label="Selecciona la comunidad o provincia"
           >
-            {(regions.length ? regions : [fallbackRegion]).map((region) => (
+            {REGIONS.map((region) => (
               <option key={region.id} value={region.id}>
                 {region.label}
               </option>
@@ -305,7 +290,7 @@ function App() {
           </div>
           <div className="map-wrapper">
             <MapContainer
-              center={[selectedRegion.lat, selectedRegion.lon]}
+              center={selectedRegion.center}
               zoom={12}
               className="map"
               ref={mapRef}
