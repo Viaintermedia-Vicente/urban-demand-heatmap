@@ -601,13 +601,15 @@ function buildWeatherSummary(weather: any, localHour: number) {
   if (!weather) return "";
   const icon = getWeatherIcon(weather, localHour);
   const temp = weather.temperature_c != null ? `${weather.temperature_c.toFixed(1)}ºC` : "N/D";
-  const rainAmount = weather.precipitation_mm != null ? weather.precipitation_mm.toFixed(1) : "0.0";
+  const precip = weather.precipitation_mm ?? weather.rain_mm;
+  const rainAmount = precip != null ? precip.toFixed(1) : "N/D";
   const wind = weather.wind_speed_kmh != null ? `${weather.wind_speed_kmh.toFixed(0)} km/h` : "N/D";
   return `${icon} ${temp}   🌧 ${rainAmount} mm   💨 ${wind}`;
 }
 
 function getWeatherIcon(weather: any, localHour: number) {
-  if (weather?.precipitation_mm != null && weather.precipitation_mm > 0) {
+  const precip = weather?.precipitation_mm ?? weather?.rain_mm;
+  if (precip != null && precip > 0) {
     return "🌧";
   }
   if (localHour >= 7 && localHour <= 19) {
