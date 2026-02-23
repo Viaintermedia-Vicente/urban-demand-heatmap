@@ -13,9 +13,11 @@ CREATE TABLE IF NOT EXISTS venues (
     postal_code TEXT,
     max_capacity INTEGER,
     created_at TIMESTAMPTZ DEFAULT now(),
-    updated_at TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (source, external_id) WHERE external_id IS NOT NULL
+    updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_venues_source_extid
+    ON venues (source, external_id) WHERE external_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS category_rules (
     category TEXT PRIMARY KEY,
@@ -114,4 +116,3 @@ CREATE TABLE IF NOT EXISTS event_feature_snapshots (
 
 CREATE INDEX IF NOT EXISTS idx_event_snapshots_target ON event_feature_snapshots (target_at);
 CREATE INDEX IF NOT EXISTS idx_event_snapshots_event ON event_feature_snapshots (event_id);
-
