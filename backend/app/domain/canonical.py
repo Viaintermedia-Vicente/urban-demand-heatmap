@@ -25,6 +25,10 @@ class CanonicalEvent:
     lat: Optional[float] = None
     lon: Optional[float] = None
     venue_name: Optional[str] = None
+    venue_external_id: Optional[str] = None
+    venue_source: Optional[str] = None
+    venue_city: Optional[str] = None
+    venue_country: Optional[str] = None
     url: Optional[str] = None
     last_synced_at: Optional[datetime] = None
     raw: Optional[dict] = None

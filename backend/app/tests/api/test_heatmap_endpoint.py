@@ -42,4 +42,3 @@ def test_heatmap_endpoint_invalid_mode_returns_422(api_client):
         params={"date": "2026-03-01", "hour": 22, "mode": "invalid"},
     )
     assert response.status_code == 422
-

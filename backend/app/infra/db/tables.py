@@ -43,7 +43,7 @@ events_table = Table(
     Column("source", Text, nullable=False),
     Column("external_id", Text, nullable=False),
     Column("title", Text, nullable=False),
-    Column("category", Text, nullable=False),
+    Column("category", Text),
     Column("subcategory", Text),
     Column("start_dt", DateTime(timezone=True), nullable=False),
     Column("end_dt", DateTime(timezone=True), nullable=False),
@@ -121,4 +121,3 @@ event_feature_snapshots_table = Table(
     Column("score_final", Float),
     Column("created_at", DateTime(timezone=True)),
 )
-

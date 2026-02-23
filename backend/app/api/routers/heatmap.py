@@ -56,6 +56,7 @@ def get_heatmap(
         weather.get("precipitation_mm") if weather else None,
         weather.get("wind_speed_kmh") if weather else None,
     )
+    target_naive = _to_utc_naive(target)
 
     mode = mode.lower()
     if mode == "heuristic":
@@ -264,11 +265,19 @@ def _minutes_to_start(start_dt: Optional[datetime], target: datetime) -> float:
     if not start_dt:
         return 0.0
     start = _to_utc_naive(start_dt)
+    if start is None:
+        return 0.0
     delta = (start - target).total_seconds() / 60.0
     return max(0.0, delta)
 
 
-def _to_utc_naive(dt: datetime) -> datetime:
+def _to_iso(dt):
+    return dt.isoformat() if dt else None
+
+
+def _to_utc_naive(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
     if dt.tzinfo is None:
         return dt
     return dt.astimezone(timezone.utc).replace(tzinfo=None)

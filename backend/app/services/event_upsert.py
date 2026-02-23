@@ -8,13 +8,15 @@ from sqlalchemy.engine import Connection, Engine
 
 from app.domain.canonical import CanonicalEvent
 from app.infra.db.tables import events_table
+from app.services.venue_upsert import VenueUpsertService
 
 
 class EventUpsertService:
-    def __init__(self, engine: Engine):
+    def __init__(self, engine: Engine, venue_service: VenueUpsertService | None = None):
         if engine is None:
             raise ValueError("engine is required")
         self.engine = engine
+        self.venue_service = venue_service or VenueUpsertService(engine)
 
     def upsert_events(
         self,
@@ -26,13 +28,17 @@ class EventUpsertService:
     ) -> dict:
         event_list = list(events)
         stats = {"inserted": 0, "updated": 0, "total": len(event_list)}
+        venue_mapping: dict[tuple[str, str], int] = {}
+        if self.venue_service:
+            venue_mapping = self.venue_service.ensure_for_events(event_list)
 
         with self.engine.begin() as conn:
             for event in event_list:
+                venue_id = self._resolve_venue_id(event, venue_mapping)
                 existing_id = self._locate_event(conn, event)
                 now = datetime.now(timezone.utc)
                 if existing_id:
-                    update_values = self._build_payload(event)
+                    update_values = self._build_payload(event, venue_id)
                     conn.execute(
                         update(events_table)
                         .where(events_table.c.id == existing_id)
@@ -41,7 +47,7 @@ class EventUpsertService:
                     stats["updated"] += 1
                 else:
                     insert_values = {
-                        **self._build_payload(event),
+                        **self._build_payload(event, venue_id),
                         "source": event.source,
                         "external_id": event.external_id,
                         "created_at": now,
@@ -93,20 +99,24 @@ class EventUpsertService:
         )
         return conn.execute(stmt).scalar_one_or_none()
 
-    def _build_payload(self, event: CanonicalEvent) -> dict:
+    def _build_payload(self, event: CanonicalEvent, venue_id: Optional[int]) -> dict:
         if event.lat is None or event.lon is None:
             raise ValueError("CanonicalEvent lat/lon are required for persistence")
         raw = event.raw or {}
         timezone_name = self._timezone_name(event.start_at)
-        end_dt = event.end_at or event.start_at
+        start_dt = event.start_at.replace(tzinfo=None) if event.start_at.tzinfo else event.start_at
+        end_dt_raw = event.end_at or event.start_at
+        end_dt = end_dt_raw.replace(tzinfo=None) if end_dt_raw.tzinfo else end_dt_raw
+        category_raw = (raw.get("category") or "").strip()
+        category = category_raw or _infer_category_from_title(event.title)
         return {
             "title": event.title,
-            "category": raw.get("category", "unknown"),
+            "category": category,
             "subcategory": raw.get("subcategory"),
-            "start_dt": event.start_at,
+            "start_dt": start_dt,
             "end_dt": end_dt,
             "timezone": timezone_name,
-            "venue_id": raw.get("venue_id"),
+            "venue_id": venue_id,
             "lat": event.lat,
             "lon": event.lon,
             "status": raw.get("status"),
@@ -114,6 +124,21 @@ class EventUpsertService:
             "expected_attendance": raw.get("expected_attendance"),
             "popularity_score": raw.get("popularity_score"),
         }
+
+    def _resolve_venue_id(self, event: CanonicalEvent, mapping: dict[tuple[str, str], int]) -> Optional[int]:
+        key = self._venue_key(event)
+        if key and key in mapping:
+            return mapping[key]
+        raw = event.raw or {}
+        venue_id = raw.get("venue_id")
+        return venue_id
+
+    def _venue_key(self, event: CanonicalEvent) -> Optional[tuple[str, str]]:
+        external = event.venue_external_id
+        if not external:
+            return None
+        source = event.venue_source or event.source
+        return (source, external)
 
     @staticmethod
     def _timezone_name(dt: datetime) -> str:
@@ -153,3 +178,16 @@ class EventUpsertService:
         if isinstance(session, Connection):
             return session
         raise ValueError("session must be a sqlalchemy Connection")
+
+
+def _infer_category_from_title(title: str | None) -> Optional[str]:
+    if not title:
+        return None
+    t = title.lower()
+    if any(word in t for word in ["festival", "concert", "concierto", "music", "música"]):
+        return "music"
+    if any(word in t for word in ["teatro", "theatre", "obra"]):
+        return "theatre"
+    if any(word in t for word in ["comedia", "comedy", "humor"]):
+        return "comedy"
+    return None

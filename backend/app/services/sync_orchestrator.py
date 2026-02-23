@@ -4,11 +4,12 @@ from typing import Iterable
 
 from sqlalchemy.engine import Engine
 
-from app.providers.hub import ProviderHub
+from app.hub.event_hub import EventHub
+from app.hub.weather_hub import WeatherHub
 
 
 class EventSyncRunner:
-    def __init__(self, engine: Engine, hub: ProviderHub):
+    def __init__(self, engine: Engine, hub: EventHub):
         self.engine = engine
         self.hub = hub
 
@@ -17,7 +18,7 @@ class EventSyncRunner:
 
 
 class WeatherSyncRunner:
-    def __init__(self, engine: Engine, hub: ProviderHub):
+    def __init__(self, engine: Engine, hub: WeatherHub):
         self.engine = engine
         self.hub = hub
 

@@ -11,6 +11,10 @@ tmp_dev.db
 
 # Node
 **/node_modules/
+frontend/tsconfig.tsbuildinfo
+frontend/.env
+frontend/.env.docker
+dev/
 
 # OS
 .DS_Store
@@ -19,3 +23,31 @@ tmp_dev.db
 **/dataset.csv
 model*.json
 run_logs/
+docker/.env
+
+# Python tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Logs / runtime
+*.log
+*.pid
+
+# Frontend build caches
+frontend/dist/
+frontend/.vite/
+**/.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Docker runtime (si se generan)
+docker/data/
+docker/logs/

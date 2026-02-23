@@ -131,6 +131,10 @@ class EventHub:
                     lat=event.lat,
                     lon=event.lon,
                     venue_name=event.venue_name,
+                    venue_external_id=event.venue_external_id,
+                    venue_source=event.venue_source,
+                    venue_city=event.venue_city,
+                    venue_country=event.venue_country,
                     url=event.url,
                 )
             )

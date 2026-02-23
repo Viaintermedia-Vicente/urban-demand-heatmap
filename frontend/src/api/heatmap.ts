@@ -11,6 +11,26 @@ export interface HeatmapHotspot {
   attendance_factor_pred?: number | null;
 }
 
+export interface HeatmapEvent {
+  id?: string | number | null;
+  title: string;
+  category?: string | null;
+  start_dt: string | null;
+  end_dt?: string | null;
+  venue_name?: string | null;
+  lat?: number | null;
+  lon?: number | null;
+  url?: string | null;
+  source?: string | null;
+  expected_attendance?: number | null;
+  score?: number | null;
+  city?: string | null;
+  address?: string | null;
+  organizer?: string | null;
+  price?: string | null;
+  description?: string | null;
+}
+
 export interface HeatmapWeather {
   temperature_c?: number;
   precipitation_mm?: number;

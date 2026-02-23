@@ -2,7 +2,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.providers.hub import ProviderHub
+from app.hub.provider_registry import ProviderRegistry
+from app.hub.weather_registry import WeatherProviderRegistry
 
 
 class DummyProvider:
@@ -10,24 +11,36 @@ class DummyProvider:
         self.name = name
 
 
-def test_register_and_list_providers():
-    hub = ProviderHub()
-    hub.register("events", DummyProvider("a"))
-    hub.register("events", DummyProvider("b"))
-    providers = hub.list("events")
-    assert len(providers) == 2
-    assert [p.name for p in providers] == ["a", "b"]
+def test_event_registry_register_and_list():
+    registry = ProviderRegistry()
+    registry.register("events", DummyProvider("a"))
+    registry.register("alt", DummyProvider("b"))
+    assert registry.list() == ["events", "alt"]
 
 
-def test_get_provider_by_name():
-    hub = ProviderHub()
+def test_event_registry_get_provider():
+    registry = ProviderRegistry()
     provider = DummyProvider("main")
-    hub.register("weather", provider)
-    assert hub.get("weather", "main") is provider
+    registry.register("events", provider)
+    assert registry.get("events") is provider
 
 
-def test_register_duplicate_name_raises():
-    hub = ProviderHub()
-    hub.register("weather", DummyProvider("dup"))
+def test_event_registry_duplicate_name_raises():
+    registry = ProviderRegistry()
+    registry.register("events", DummyProvider("dup"))
     with pytest.raises(ValueError):
-        hub.register("weather", DummyProvider("dup"))
+        registry.register("events", DummyProvider("dup2"))
+
+
+def test_weather_registry_register_and_get():
+    registry = WeatherProviderRegistry()
+    provider = DummyProvider("wx")
+    registry.register("weather", provider)
+    assert registry.get("weather") is provider
+
+
+def test_weather_registry_list():
+    registry = WeatherProviderRegistry()
+    registry.register("a", DummyProvider("wx-a"))
+    registry.register("b", DummyProvider("wx-b"))
+    assert registry.list() == ["a", "b"]

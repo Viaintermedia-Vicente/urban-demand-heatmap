@@ -4,19 +4,17 @@
 Plataforma para equipos de planificación urbana y comercios locales que identifica zonas con alta concentración de actividad a partir de eventos ciudadanos y streams operativos.
 
 ## Estado del proyecto
-- Docs ✅
-- Docker ⏳
-- Backend ⏳
-- Front ⏳
-- IA opcional ⏳
+- Docs ✅ (actualizadas a contratos reales)
+- Docker ✅ (compose con backend y frontend)
+- Backend ✅
+- Front ✅
+- IA opcional ⚪ (módulos opcionales, no críticos)
 
 ## Demo local (Docker Compose)
 1. `docker compose build`
 2. `docker compose up -d`
-3. Acceder a `http://localhost:3000` para el front y `http://localhost:8000/docs` para la API.
+3. Acceder a `http://localhost:5174` (frontend) y `http://localhost:8000/docs` (API).
 4. Para detener el entorno: `docker compose down`
-
-> Nota: Los servicios aún no existen; esta guía se actualizará cuando se añadan los contenedores.
 
 ## Ejecución en local
 - **Requisitos**: Docker Desktop (o motor Docker 24+) y Docker Compose v2.
@@ -24,9 +22,8 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
   1. `git clone <repo-url> tfm-hotspots && cd tfm-hotspots`
   2. `cd docker && docker compose up --build`
 - **URLs**:
-  - Frontend: `http://localhost:5173`
-  - Backend: `http://localhost:8000/health` y `http://localhost:8000/docs`
-- Nota: en esta fase sólo existe la infraestructura base; los servicios reales se irán completando durante el desarrollo del TFM.
+  - Frontend: `http://localhost:5174`
+  - Backend: `http://localhost:8000/docs`
 
 ## Arquitectura a alto nivel
 - Backend FastAPI centralizado para ingesta, predicción y exposición de API REST.
@@ -34,9 +31,9 @@ Plataforma para equipos de planificación urbana y comercios locales que identif
 - Frontend React para visualización del heatmap y panel de eventos.
 - Job de importación y enriquecimiento periódico (ETL liviano o cron job).
 
-## Endpoints esperados
-- `GET /heatmap`: devuelve celdas geoespaciales con score y metadata.
-- `GET /events`: lista eventos recientes y filtros por categoría, horario y ubicación.
+## Endpoints principales
+- `GET /api/heatmap`: devuelve hotspots y, si hay datos, eventos asociados (o sintéticos si no hay datos).
+- `GET /api/events`: lista eventos actuales desde `from_hour`, con coordenadas cuando están disponibles.
 
 ## Testing
 - Backend: `pytest` con fixtures para Postgres y pruebas de contrato.
@@ -113,9 +110,10 @@ source backend/.venv/bin/activate
 : "# Move into backend"
 cd backend
 : "# Set database location (defaults to sqlite file)"
-export DATABASE_URL="sqlite:////Users/vicente/Trabajos/VTC/proyecto/FinMaster/tmp_dev.db"
+: "# Set database location (defaults to sqlite file in repo)"
+export DATABASE_URL="sqlite:///${PWD}/tmp_dev.db"
 : "# Reset SQLite database"
-rm -f /Users/vicente/Trabajos/VTC/proyecto/FinMaster/tmp_dev.db
+rm -f "${PWD}/tmp_dev.db"
 : "# Import events/venues/rules from CSV seeds"
 python -m app.jobs.import_csv ../data
 : "# Attempt to import weather from Open-Meteo (may fail offline)"

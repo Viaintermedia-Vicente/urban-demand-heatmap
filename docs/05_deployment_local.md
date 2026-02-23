@@ -9,16 +9,15 @@
 - **PostgreSQL** (`db`): almacén persistente para eventos y auditoría.
 - **Backend FastAPI** (`backend`): expone la API REST y ejecuta importaciones bajo demanda.
 - **Frontend React** (`frontend`): interfaz web con Leaflet para visualizar el mapa de calor.
-- (Opcional) **Importer**: contenedor programado para lanzar el job cada hora.
+- (Opcional/futuro) **Importer**: no incluido en el compose actual; cuando se active, lanzará ingestas programadas.
 
 ## 3. Variables de entorno
-Crear un archivo `.env` en la raíz antes de levantar los servicios:
+Crear un archivo `.env` en la raíz antes de levantar los servicios (o exportarlas en tu shell):
 - `DB_URL=postgresql://tfm:tfm@db:5432/tfm_hotspots`
 - `API_PORT=8000`
 - `FRONT_PORT=5173`
-- `IMPORT_SOURCES=madrid_cultura,madrid_deportes`
+- `IMPORT_SOURCES=madrid_cultura,madrid_deportes` (opcional; usado sólo si hay job de import)
 - `OLLAMA_URL=` (vacío por defecto si no hay módulo IA)
-Estas variables permiten parametrizar puertos y credenciales sin tocar el compose.
 
 ## 4. Pasos de ejecución
 1. Construir e iniciar: `docker compose up --build`
@@ -53,23 +52,23 @@ Con estos pasos, cualquier evaluador puede levantar el entorno localmente sin so
 Ejecuta estos comandos desde la carpeta `docker/` con los contenedores levantados (`docker compose up -d`). El backend tiene montado `/data` en modo lectura y la base usa Postgres.
 
 ```bash
-# 1. Importar seeds desde /data montado en el contenedor
-docker compose exec backend bash -lc "python -m app.jobs.import_csv /data"
+# 1. Importar seeds (opcional, si tienes /data montado)
+docker compose exec backend bash -lc "python3 -m app.jobs.import_csv /data"
 
 # 2. Cargar meteo sintética (sin requerir Open-Meteo)
-docker compose exec backend bash -lc "python -m app.jobs.import_weather --lat 40.4168 --lon -3.7038 --start-date 2026-03-01 --end-date 2026-03-07 --location-name Madrid --offline"
+docker compose exec backend bash -lc "python3 -m app.jobs.import_weather --lat 40.4168 --lon -3.7038 --start-date 2026-03-01 --end-date 2026-03-07 --location-name Madrid --offline"
 
 # 3. Materializar snapshots (sin subcomando extra)
-docker compose exec backend bash -lc "python -m app.jobs.materialize_range --start-date 2026-03-01 --end-date 2026-03-07 --hours 0-23 --lat 40.4168 --lon -3.7038"
+docker compose exec backend bash -lc "python3 -m app.jobs.materialize_range --start-date 2026-03-01 --end-date 2026-03-07 --hours 0-23 --lat 40.4168 --lon -3.7038"
 
 # 4. Exportar dataset dentro de /app y verificar filas
-docker compose exec backend bash -lc "python -m app.jobs.export_training_dataset --out /app/dataset.csv --start-date 2026-03-01 --end-date 2026-03-07"
+docker compose exec backend bash -lc "python3 -m app.jobs.export_training_dataset --out /app/dataset.csv --start-date 2026-03-01 --end-date 2026-03-07"
 docker compose exec backend bash -lc "wc -l /app/dataset.csv"
 
 # 5. Entrenar modelos baseline usando el dataset generado
-docker compose exec backend bash -lc "python -m app.jobs.train_baseline --csv-path /app/dataset.csv --model-out /app/model.json --target-col label"
-docker compose exec backend bash -lc "python -m app.jobs.train_baseline --csv-path /app/dataset.csv --model-out /app/model_lead_time.json --target-col label_lead_time_min"
-docker compose exec backend bash -lc "python -m app.jobs.train_baseline --csv-path /app/dataset.csv --model-out /app/model_attendance_factor.json --target-col label_attendance_factor"
+docker compose exec backend bash -lc "python3 -m app.jobs.train_baseline --csv-path /app/dataset.csv --model-out /app/model.json --target-col label"
+docker compose exec backend bash -lc "python3 -m app.jobs.train_baseline --csv-path /app/dataset.csv --model-out /app/model_lead_time.json --target-col label_lead_time_min"
+docker compose exec backend bash -lc "python3 -m app.jobs.train_baseline --csv-path /app/dataset.csv --model-out /app/model_attendance_factor.json --target-col label_attendance_factor"
 ```
 
 > Con el rango completo (7 días × 24 h) el dataset exportado genera >50 filas; el `wc -l` debería devolver al menos 169 (cabecera + 168 filas).
