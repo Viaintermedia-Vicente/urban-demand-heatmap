@@ -4,8 +4,8 @@ import L from "leaflet";
 import { Circle, MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 
-import { fetchHeatmap, type HeatmapEvent, type HeatmapHotspot, type HeatmapMode } from "./api/heatmap";
-import { fetchEvents, type EventSummary } from "./api/events";
+import { fetchHeatmap, type HeatmapEvent, type HeatmapHotspot, type HeatmapMode } from "./api/heatmap.ts";
+import { fetchEvents, type EventSummary } from "./api/events.ts";
 import "./App.css";
 
 type RegionOption = {
