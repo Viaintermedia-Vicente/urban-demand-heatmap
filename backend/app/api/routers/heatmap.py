@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 from threading import Lock
 from datetime import date as date_type, datetime, time, timezone
+from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -41,15 +42,18 @@ def get_heatmap(
     hour: int = Query(..., ge=0, le=23),
     lat: float = Query(40.4168, description="Latitud de referencia"),
     lon: float = Query(-3.7038, description="Longitud de referencia"),
+    city: str | None = Query(None, description="Ciudad/provincia para filtrar eventos"),
     mode: str = Query("heuristic", pattern="^(heuristic|ml)$"),
     engine: Engine = Depends(get_engine),
 ):
+    tz = ZoneInfo("Europe/Madrid")
     repo = EventsRepository(engine)
     weather_repo = WeatherRepository(engine)
-    rows = repo.list_events_for_day(date)
-    target = datetime.combine(date, time(hour=hour))
+    rows = repo.list_events_for_day(date, city=city, tzinfo=tz)
+    target_local = datetime.combine(date, time(hour=hour), tzinfo=tz)
+    target = target_local.astimezone(timezone.utc)
     domain_events = [_row_to_domain(row) for row in rows]
-    weather_dt = target.replace(tzinfo=timezone.utc)
+    weather_dt = target
     weather = weather_repo.get_observation_at(lat, lon, target)
     factor = weather_factor(
         weather.get("temperature_c") if weather else None,
@@ -95,14 +99,20 @@ def get_heatmap(
 
 
 def _row_to_domain(row: dict) -> DomainEvent:
+    lat = row.get("lat")
+    lon = row.get("lon")
+    if lat is None:
+        lat = row.get("venue_lat")
+    if lon is None:
+        lon = row.get("venue_lon")
     return DomainEvent(
         id=str(row["id"]),
         title=row["title"],
         category=row["category"],
         start_dt=row["start_dt"],
         end_dt=row["end_dt"],
-        lat=row["lat"],
-        lon=row["lon"],
+        lat=lat,
+        lon=lon,
         source=row.get("source"),
     )
 

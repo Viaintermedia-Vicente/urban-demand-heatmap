@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import insert, select, update
+from sqlalchemy import insert, select, update, func
 from sqlalchemy.engine import Engine
 
 from .tables import events_table, venues_table
@@ -72,9 +72,17 @@ class EventsRepository:
             ).mappings().first()
         return dict(row) if row else None
 
-    def list_events_for_day(self, day: date) -> List[Dict[str, Any]]:
-        start, end = self._day_bounds(day)
+    def list_events_for_day(
+        self,
+        day: date,
+        city: Optional[str] = None,
+        tzinfo=timezone.utc,
+    ) -> List[Dict[str, Any]]:
+        start, end = self._day_bounds(day, tzinfo)
         join_stmt = events_table.outerjoin(venues_table, events_table.c.venue_id == venues_table.c.id)
+        filters = [(events_table.c.start_dt >= start), (events_table.c.start_dt < end)]
+        if city:
+            filters.append(func.lower(venues_table.c.city) == city.lower())
         with self.engine.begin() as conn:
             rows = conn.execute(
                 select(
@@ -82,16 +90,30 @@ class EventsRepository:
                     venues_table.c.name.label("venue_name"),
                     venues_table.c.lat.label("venue_lat"),
                     venues_table.c.lon.label("venue_lon"),
+                    venues_table.c.city.label("city"),
                 )
                 .select_from(join_stmt)
-                .where((events_table.c.start_dt >= start) & (events_table.c.start_dt < end))
+                .where(*filters)
             ).mappings().all()
         return [dict(row) for row in rows]
 
-    def list_events_from_hour(self, day: date, from_hour: int) -> List[Dict[str, Any]]:
-        day_start, day_end = self._day_bounds(day)
-        start = day_start + timedelta(hours=from_hour)
+    def list_events_from_hour(
+        self,
+        day: date,
+        from_hour: int,
+        city: Optional[str] = None,
+        tzinfo=timezone.utc,
+    ) -> List[Dict[str, Any]]:
+        day_start_local = datetime.combine(day, time.min, tzinfo=tzinfo)
+        day_end_utc = (day_start_local + timedelta(days=1)).astimezone(timezone.utc)
+        start_utc = day_start_local.replace(hour=from_hour).astimezone(timezone.utc)
         join_stmt = events_table.outerjoin(venues_table, events_table.c.venue_id == venues_table.c.id)
+        filters = [
+            events_table.c.start_dt >= start_utc,
+            events_table.c.start_dt < day_end_utc,
+        ]
+        if city:
+            filters.append(func.lower(venues_table.c.city) == city.lower())
         with self.engine.begin() as conn:
             rows = conn.execute(
                 select(
@@ -109,9 +131,10 @@ class EventsRepository:
                     venues_table.c.name.label("venue_name"),
                     venues_table.c.lat.label("venue_lat"),
                     venues_table.c.lon.label("venue_lon"),
+                    venues_table.c.city.label("city"),
                 )
                 .select_from(join_stmt)
-                .where((events_table.c.start_dt >= start) & (events_table.c.start_dt < day_end))
+                .where(*filters)
                 .order_by(events_table.c.start_dt)
             ).mappings().all()
         return [dict(row) for row in rows]
@@ -131,7 +154,7 @@ class EventsRepository:
         return venue_id
 
     @staticmethod
-    def _day_bounds(day: date):
-        start = datetime.combine(day, time.min, tzinfo=timezone.utc)
-        end = start + timedelta(days=1)
-        return start, end
+    def _day_bounds(day: date, tzinfo=timezone.utc):
+        start_local = datetime.combine(day, time.min, tzinfo=tzinfo)
+        end_local = start_local + timedelta(days=1)
+        return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)

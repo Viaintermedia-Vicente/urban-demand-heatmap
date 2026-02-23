@@ -82,9 +82,10 @@ function App() {
             mode,
             lat: selectedRegion.center[0],
             lon: selectedRegion.center[1],
+            city: selectedRegion.id,
             signal: controller.signal,
           }),
-          fetchEvents({ date, fromHour: hour, signal: controller.signal }).catch(() => [] as EventSummary[]),
+          fetchEvents({ date, fromHour: hour, city: selectedRegion.id, signal: controller.signal }).catch(() => [] as EventSummary[]),
         ]);
         if (!controller.signal.aborted) {
           setHotspots(heatmap.hotspots ?? []);

@@ -21,13 +21,17 @@ export interface EventSummary {
 interface FetchEventsParams {
   date: string;
   fromHour: number;
+  city?: string | null;
   signal?: AbortSignal;
 }
 
-export async function fetchEvents({ date, fromHour, signal }: FetchEventsParams) {
+export async function fetchEvents({ date, fromHour, city, signal }: FetchEventsParams) {
   const search = new URLSearchParams({
     date,
     from_hour: String(fromHour),
   });
-  return fetchJson<EventSummary[]>(`/events?${search.toString()}`, { signal });
+  if (city) {
+    search.set("city", city);
+  }
+  return fetchJson<EventSummary[]>(`/api/events?${search.toString()}`, { signal });
 }

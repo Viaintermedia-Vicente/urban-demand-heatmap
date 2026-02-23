@@ -19,13 +19,16 @@ router = APIRouter(tags=["events"])
 def list_events(
     date: date_type,
     from_hour: int = Query(..., ge=0, le=23),
+    city: str | None = Query(None, description="Ciudad/provincia para filtrar"),
     engine: Engine = Depends(get_engine),
 ):
+    tz = ZoneInfo("Europe/Madrid")
     repo = EventsRepository(engine)
-    rows = repo.list_events_from_hour(date, from_hour)
+    rows = repo.list_events_from_hour(date, from_hour, city=city, tzinfo=tz)
     response = []
     for row in rows:
-        start_dt = row["start_dt"]
+        start_dt = _to_local(row.get("start_dt"), tz)
+        end_dt = _to_local(row.get("end_dt"), tz)
         lat = row.get("lat") if row.get("lat") is not None else row.get("venue_lat")
         lon = row.get("lon") if row.get("lon") is not None else row.get("venue_lon")
         category = _normalize_category(row.get("category"))
@@ -41,13 +44,14 @@ def list_events(
                 "category": category,
                 "subcategory": subcategory,
                 "start_dt": start_dt.isoformat() if start_dt else None,
-                "end_dt": row.get("end_dt").isoformat() if row.get("end_dt") else None,
+                "end_dt": end_dt.isoformat() if end_dt else None,
                 "venue_name": row.get("venue_name"),
                 "expected_attendance": row.get("expected_attendance"),
                 "lat": lat,
                 "lon": lon,
                 "url": row.get("url") or row.get("ticket_url") or row.get("source_url"),
                 "source": row.get("source"),
+                "city": row.get("city"),
             }
         )
     return response
@@ -123,6 +127,14 @@ def _fetch_active_events(engine: Engine):
 
 def _to_iso(dt):
     return dt.isoformat() if dt else None
+
+
+def _to_local(dt, tz):
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc).astimezone(tz)
+    return dt.astimezone(tz)
 
 
 def infer_category(title: str | None) -> str:

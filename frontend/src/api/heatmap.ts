@@ -60,10 +60,11 @@ interface FetchHeatmapParams {
   mode: HeatmapMode;
   lat?: number;
   lon?: number;
+  city?: string;
   signal?: AbortSignal;
 }
 
-export async function fetchHeatmap({ date, hour, mode, lat, lon, signal }: FetchHeatmapParams) {
+export async function fetchHeatmap({ date, hour, mode, lat, lon, city, signal }: FetchHeatmapParams) {
   const search = new URLSearchParams({
     date,
     hour: String(hour),
@@ -73,5 +74,8 @@ export async function fetchHeatmap({ date, hour, mode, lat, lon, signal }: Fetch
     search.set("lat", lat.toString());
     search.set("lon", lon.toString());
   }
-  return fetchJson<HeatmapResponse>(`/heatmap?${search.toString()}`, { signal });
+  if (city) {
+    search.set("city", city);
+  }
+  return fetchJson<HeatmapResponse>(`/api/heatmap?${search.toString()}`, { signal });
 }
