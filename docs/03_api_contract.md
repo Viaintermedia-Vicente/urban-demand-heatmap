@@ -20,12 +20,23 @@ La API REST JSON de `tfm-hotspots` está diseñada para que el frontend web cons
   "target": "2026-02-22T22:00:00Z",
   "weather": {...},
   "hotspots": [
-    {"lat": 40.4203, "lon": -3.7044, "score": 0.87, "radius_m": 220},
-    {"lat": 40.4404, "lon": -3.6883, "score": 0.72, "radius_m": 180}
+    {"lat": 40.4203, "lon": -3.7044, "score": 0.87, "radius_m": 220}
+  ],
+  "events": [
+    {
+      "id": 123,
+      "title": "Concierto en Retiro",
+      "category": "music",
+      "start_dt": "2026-02-22T20:30:00Z",
+      "lat": 40.4208,
+      "lon": -3.7054,
+      "url": "https://...",
+      "score": 0.42
+    }
   ]
 }
 ```
-Nota: este endpoint **no** devuelve eventos.
+Nota: si no hay eventos en base de datos para esa franja, `events` puede venir vacío o incluir entradas sintéticas derivadas de los hotspots para que el frontend no quede sin datos.
 
 ## 3. GET /api/events
 **Descripción**: lista eventos activos a partir de `from_hour` para la fecha dada.
@@ -53,31 +64,12 @@ Nota: este endpoint **no** devuelve eventos.
   }
 ]
 ```
-Categoría se devuelve real cuando existe; si no hay datos, es `null` (nunca `"unknown"`).
+Categoría puede venir `null` o `"unknown"` si la fuente no aporta dato; `lat/lon` usan coordenadas del evento o, en su defecto, las del venue (pueden ser `null` si tampoco existen).
 
 ## 4. GET /api/hotspot_events
 **Descripción**: eventos cercanos a un punto/fecha/hora dentro de un radio dado.
 
 Parámetros: `date`, `hour`, `lat`, `lon`, `radius_m` (default 300), `limit` (default 20).
-
-## 4. POST /api/admin/import-events
-**Descripción**: endpoint administrativo para lanzar imports manuales (testing, reproducibilidad).
-
-**Body mínimo**
-```json
-{
-  "source": "madrid_cultura",
-  "date_range": {"from": "2026-02-10", "to": "2026-02-12"}
-}
-```
-
-**Response**
-```json
-{
-  "meta": {"request_id": "adm-001"},
-  "data": {"source": "madrid_cultura", "inserted": 120, "updated": 45, "run_id": "c0f7..."}
-}
-```
 
 ## 5. Gestión de errores
 - `400 Bad Request`: parámetros inválidos o formatos incorrectos.

@@ -1,8 +1,8 @@
 # 04 - Testing Strategy
 
 ## 1. Filosofía de testing
-- El proyecto sigue desarrollo guiado por tests (TDD): se define el caso de prueba antes de implementar la funcionalidad.
-- Los tests se consideran documentación viva; describen comportamientos esperados y sirven como evidencia para el tribunal.
+- Se priorizan pruebas funcionales básicas de dominio y API; no se ha aplicado TDD de forma estricta en todas las piezas.
+- Los tests existentes sirven como documentación viva de los contratos; si faltan, se complementa con ejemplos en los docs.
 
 ## 2. Tipos de tests
 - **Unitarios**: se enfocan en la lógica pura de cálculo de score temporal y ponderaciones por categoría dentro del dominio.
@@ -20,9 +20,9 @@
    - When se agrega el heatmap.
    - Then el score resultante refleja la suma ponderada y aparece como hotspot principal.
 3. **Heatmap vs. eventos actuales**
-   - Given el endpoint `/api/heatmap` (predictivo) y `/api/events` (eventos reales).
-   - When se consulta `/api/heatmap`, la respuesta solo incluye `mode`, `target`, `weather`, `hotspots`.
-   - Then `/api/events` devuelve la lista completa de eventos con `category`/`subcategory` nullable (sin `"unknown"`).
+   - Given el endpoint `/api/heatmap` (predictivo) y `/api/events` (eventos actuales).
+   - When se consulta `/api/heatmap`, la respuesta incluye `hotspots` y puede incluir `events` (o sintéticos si no hay datos).
+   - Then `/api/events` devuelve la lista de eventos con `category` nullable o `"unknown"` y coordenadas si están disponibles.
 
 ## 4. Herramientas
 - `python3 -m pytest` como runner general (en mac/Linux). En Docker: `docker compose exec backend python -m pytest`.

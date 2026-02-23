@@ -32,12 +32,14 @@ services:
     build:
       context: ../frontend
       dockerfile: Dockerfile
+    env_file:
+      - ../frontend/.env.docker
     ports:
       - "5174:5173"
     depends_on:
       - backend
     volumes:
-      - ../frontend:/usr/src/app
+      - ../frontend:/app
 
 volumes:
   pgdata:

@@ -1,10 +1,12 @@
-const API_BASE = (import.meta.env.VITE_API_BASE ?? "/api").replace(/\/$/, "");
+const BASE = (import.meta.env.VITE_API_BASE ?? "").replace(/\/$/, "");
+const API_BASE = BASE || "/api";
 
 export async function fetchJson<T>(
   path: string,
   init?: RequestInit & { signal?: AbortSignal }
 ): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  const response = await fetch(`${API_BASE}${normalized}`, {
     headers: {
       "Content-Type": "application/json",
       ...(init?.headers || {}),
