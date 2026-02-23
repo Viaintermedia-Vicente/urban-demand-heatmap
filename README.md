@@ -146,6 +146,7 @@ make test
 2. Inicializa la base de datos (crea tablas y carga semillas). Hay un script incluido:
    ```bash
    cd docker
+   mkdir -p ../run_logs   # carpeta de logs para cron
    ./init_db.sh
    ```
    El script:

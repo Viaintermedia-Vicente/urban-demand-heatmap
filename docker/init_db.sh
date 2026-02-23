@@ -6,6 +6,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
+# Carpeta de logs en host (para redirecciones de cron)
+mkdir -p ../run_logs
+
 echo "👉 Creando tablas con SQLAlchemy metadata..."
 docker compose exec backend python - <<'PY'
 import os
