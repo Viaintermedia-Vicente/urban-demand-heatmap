@@ -110,9 +110,10 @@ source backend/.venv/bin/activate
 : "# Move into backend"
 cd backend
 : "# Set database location (defaults to sqlite file)"
-export DATABASE_URL="sqlite:////Users/vicente/Trabajos/VTC/proyecto/FinMaster/tmp_dev.db"
+: "# Set database location (defaults to sqlite file in repo)"
+export DATABASE_URL="sqlite:///${PWD}/tmp_dev.db"
 : "# Reset SQLite database"
-rm -f /Users/vicente/Trabajos/VTC/proyecto/FinMaster/tmp_dev.db
+rm -f "${PWD}/tmp_dev.db"
 : "# Import events/venues/rules from CSV seeds"
 python -m app.jobs.import_csv ../data
 : "# Attempt to import weather from Open-Meteo (may fail offline)"

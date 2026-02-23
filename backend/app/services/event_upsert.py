@@ -104,12 +104,16 @@ class EventUpsertService:
             raise ValueError("CanonicalEvent lat/lon are required for persistence")
         raw = event.raw or {}
         timezone_name = self._timezone_name(event.start_at)
-        end_dt = event.end_at or event.start_at
+        start_dt = event.start_at.replace(tzinfo=None) if event.start_at.tzinfo else event.start_at
+        end_dt_raw = event.end_at or event.start_at
+        end_dt = end_dt_raw.replace(tzinfo=None) if end_dt_raw.tzinfo else end_dt_raw
+        category_raw = (raw.get("category") or "").strip()
+        category = category_raw or _infer_category_from_title(event.title)
         return {
             "title": event.title,
-            "category": raw.get("category", "unknown"),
+            "category": category,
             "subcategory": raw.get("subcategory"),
-            "start_dt": event.start_at,
+            "start_dt": start_dt,
             "end_dt": end_dt,
             "timezone": timezone_name,
             "venue_id": venue_id,
@@ -174,3 +178,16 @@ class EventUpsertService:
         if isinstance(session, Connection):
             return session
         raise ValueError("session must be a sqlalchemy Connection")
+
+
+def _infer_category_from_title(title: str | None) -> Optional[str]:
+    if not title:
+        return None
+    t = title.lower()
+    if any(word in t for word in ["festival", "concert", "concierto", "music", "música"]):
+        return "music"
+    if any(word in t for word in ["teatro", "theatre", "obra"]):
+        return "theatre"
+    if any(word in t for word in ["comedia", "comedy", "humor"]):
+        return "comedy"
+    return None
