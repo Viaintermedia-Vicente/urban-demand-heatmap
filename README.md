@@ -135,3 +135,25 @@ with e.connect() as c:
 EOF
 make test
 ```
+
+## Despliegue Docker / Plesk
+
+1. Arranca los servicios:
+   ```bash
+   cd docker
+   docker compose up -d
+   ```
+2. Inicializa la base de datos (crea tablas y carga semillas). Hay un script incluido:
+   ```bash
+   cd docker
+   ./init_db.sh
+   ```
+   El script:
+   - crea el esquema con SQLAlchemy (`metadata.create_all`)
+   - aplica migración defensiva (`python -m app.jobs.migrate_db`)
+   - importa seeds (`python -m app.jobs.import_csv`, usando `data/`)
+3. Verifica rápidamente:
+   ```bash
+   docker compose exec db psql -U hotspots_user -d hotspots -c "\\dt"
+   docker compose exec backend curl -s "http://localhost:8000/api/heatmap?date=2026-02-23&hour=20&lat=40.4168&lon=-3.7038" | head
+   ```
