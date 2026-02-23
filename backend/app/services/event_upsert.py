@@ -83,8 +83,13 @@ class EventUpsertService:
             return None
         tolerance_deg = 0.01
         window = timedelta(minutes=30)
-        start_lower = event.start_at - window
-        start_upper = event.start_at + window
+        base_start = (
+            event.start_at.astimezone(timezone.utc).replace(tzinfo=None)
+            if event.start_at.tzinfo
+            else event.start_at
+        )
+        start_lower = base_start - window
+        start_upper = base_start + window
         stmt = (
             select(events_table.c.id)
             .where(
@@ -104,9 +109,16 @@ class EventUpsertService:
             raise ValueError("CanonicalEvent lat/lon are required for persistence")
         raw = event.raw or {}
         timezone_name = self._timezone_name(event.start_at)
-        start_dt = event.start_at.replace(tzinfo=None) if event.start_at.tzinfo else event.start_at
-        end_dt_raw = event.end_at or event.start_at
-        end_dt = end_dt_raw.replace(tzinfo=None) if end_dt_raw.tzinfo else end_dt_raw
+        if getattr(event, "_was_naive", False):
+            start_dt = event.start_at.replace(tzinfo=None)
+            end_dt_raw = event.end_at or event.start_at
+            end_dt = end_dt_raw.replace(tzinfo=None)
+            timezone_name = "Europe/Madrid"
+        else:
+            start_dt = event.start_at.astimezone(timezone.utc).replace(tzinfo=None) if event.start_at.tzinfo else event.start_at
+            end_dt_raw = event.end_at or event.start_at
+            end_dt = end_dt_raw.astimezone(timezone.utc).replace(tzinfo=None) if end_dt_raw.tzinfo else end_dt_raw
+            timezone_name = self._timezone_name(event.start_at)
         category_raw = (raw.get("category") or "").strip()
         category = category_raw or _infer_category_from_title(event.title)
         return {

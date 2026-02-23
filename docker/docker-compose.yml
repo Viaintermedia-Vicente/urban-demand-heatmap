@@ -18,6 +18,7 @@ services:
     command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000
     environment:
       DATABASE_URL: postgresql://hotspots_user:hotspots_pass@db:5432/hotspots
+      SYNC_WEATHER_PROVIDER: open-meteo
       TZ: Europe/Madrid
       MODEL_DIR: /app
       TICKETMASTER_API_KEY: ${TICKETMASTER_API_KEY}

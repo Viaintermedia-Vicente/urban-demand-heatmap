@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
@@ -32,8 +32,11 @@ class CanonicalEvent:
     url: Optional[str] = None
     last_synced_at: Optional[datetime] = None
     raw: Optional[dict] = None
+    _was_naive: bool = field(init=False, repr=False, default=False)
 
     def __post_init__(self):
+        original_start = self.start_at
+        self._was_naive = original_start.tzinfo is None
         if not self.source or not self.external_id:
             raise ValueError("source and external_id are required")
         self.start_at = _to_madrid(self.start_at)

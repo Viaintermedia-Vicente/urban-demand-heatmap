@@ -56,7 +56,7 @@ def test_event_upsert_deduplicates_cross_providers(engine):
 
 def test_event_upsert_normalizes_timezone(engine):
     service = EventUpsertService(engine)
-    madrid_start = datetime(2026, 2, 18, 20, 0).astimezone(timezone.utc)
+    madrid_start = datetime(2026, 2, 18, 20, 0, tzinfo=timezone.utc)
     events = [
         CanonicalEvent("providerA", "evt-5", "Hora Local", madrid_start, madrid_start + timedelta(hours=1), 40.4, -3.7, None)
     ]

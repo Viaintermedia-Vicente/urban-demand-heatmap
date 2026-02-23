@@ -1,5 +1,5 @@
 def test_events_endpoint_returns_list(api_client):
-    response = api_client.get("/api/events", params={"date": "2026-03-01", "from_hour": 10})
+    response = api_client.get("/api/events", params={"date": "2026-03-01", "from_hour": 12})
     assert response.status_code == 200
     data = response.json()
     assert isinstance(data, list)
