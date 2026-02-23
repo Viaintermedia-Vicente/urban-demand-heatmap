@@ -77,5 +77,5 @@ export async function fetchHeatmap({ date, hour, mode, lat, lon, city, signal }:
   if (city) {
     search.set("city", city);
   }
-  return fetchJson<HeatmapResponse>(`/api/heatmap?${search.toString()}`, { signal });
+  return fetchJson<HeatmapResponse>(`/heatmap?${search.toString()}`, { signal });
 }

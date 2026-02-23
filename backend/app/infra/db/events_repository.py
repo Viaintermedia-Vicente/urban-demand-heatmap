@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from sqlalchemy import insert, select, update, func
+from sqlalchemy import and_, insert, or_, select, update, func
 from sqlalchemy.engine import Engine
 
 from .tables import events_table, venues_table
@@ -105,12 +105,22 @@ class EventsRepository:
         tzinfo=timezone.utc,
     ) -> List[Dict[str, Any]]:
         day_start_local = datetime.combine(day, time.min, tzinfo=tzinfo)
-        day_end_utc = (day_start_local + timedelta(days=1)).astimezone(timezone.utc)
-        start_utc = day_start_local.replace(hour=from_hour).astimezone(timezone.utc)
+        hour_start_utc = day_start_local.replace(hour=from_hour).astimezone(timezone.utc)
+        if from_hour < 23:
+            hour_end_utc = day_start_local.replace(hour=from_hour + 1).astimezone(timezone.utc)
+        else:
+            hour_end_utc = (day_start_local + timedelta(days=1)).astimezone(timezone.utc)
+        default_duration = timedelta(hours=3)
         join_stmt = events_table.outerjoin(venues_table, events_table.c.venue_id == venues_table.c.id)
         filters = [
-            events_table.c.start_dt >= start_utc,
-            events_table.c.start_dt < day_end_utc,
+            events_table.c.start_dt < hour_end_utc,
+            or_(
+                and_(events_table.c.end_dt.isnot(None), events_table.c.end_dt > hour_start_utc),
+                and_(
+                    events_table.c.end_dt.is_(None),
+                    events_table.c.start_dt > hour_start_utc - default_duration,
+                ),
+            ),
         ]
         if city:
             filters.append(func.lower(venues_table.c.city) == city.lower())

@@ -33,5 +33,5 @@ export async function fetchEvents({ date, fromHour, city, signal }: FetchEventsP
   if (city) {
     search.set("city", city);
   }
-  return fetchJson<EventSummary[]>(`/api/events?${search.toString()}`, { signal });
+  return fetchJson<EventSummary[]>(`/events?${search.toString()}`, { signal });
 }

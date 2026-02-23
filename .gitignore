@@ -51,3 +51,7 @@ frontend/.vite/
 # Docker runtime (si se generan)
 docker/data/
 docker/logs/
+
+# Compiled TS artifacts in frontend/src (Vite uses .ts directly)
+frontend/src/**/*.js
+frontend/src/**/*.d.ts
