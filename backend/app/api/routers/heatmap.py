@@ -6,7 +6,6 @@ import os
 from pathlib import Path
 from threading import Lock
 from datetime import date as date_type, datetime, time, timezone
-from zoneinfo import ZoneInfo
 from typing import Dict, List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -42,19 +41,17 @@ def get_heatmap(
     hour: int = Query(..., ge=0, le=23),
     lat: float = Query(40.4168, description="Latitud de referencia"),
     lon: float = Query(-3.7038, description="Longitud de referencia"),
-    city: str | None = Query(None, description="Ciudad/provincia para filtrar eventos"),
+    city: Optional[str] = Query(None, description="Ciudad/provincia para filtrar eventos"),
     mode: str = Query("heuristic", pattern="^(heuristic|ml)$"),
     engine: Engine = Depends(get_engine),
 ):
-    tz = ZoneInfo("Europe/Madrid")
     repo = EventsRepository(engine)
     weather_repo = WeatherRepository(engine)
-    rows = repo.list_events_for_day(date, city=city, tzinfo=tz)
-    target_local = datetime.combine(date, time(hour=hour), tzinfo=tz)
-    target = target_local.astimezone(timezone.utc)
+    rows = repo.list_events_for_day(date, city=city, tzinfo=timezone.utc)
+    target = datetime.combine(date, time(hour=hour))
     domain_events = [_row_to_domain(row) for row in rows]
-    weather_dt = target
-    weather = weather_repo.get_observation_at(lat, lon, target)
+    weather_dt = target.replace(tzinfo=timezone.utc)
+    weather = weather_repo.get_observation_at(lat, lon, weather_dt)
     factor = weather_factor(
         weather.get("temperature_c") if weather else None,
         weather.get("precipitation_mm") if weather else None,

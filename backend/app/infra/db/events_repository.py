@@ -142,6 +142,38 @@ class EventsRepository:
                 .where(*filters)
                 .order_by(events_table.c.start_dt)
             ).mappings().all()
+            results = [dict(row) for row in rows]
+            if results:
+                return results
+            # Fallback: si no hay eventos solapados, devolvemos desde la hora en adelante
+            fallback_filters = [
+                events_table.c.start_dt >= hour_start_utc,
+                events_table.c.start_dt < (day_start_local + timedelta(days=1)).astimezone(timezone.utc),
+            ]
+            if city:
+                fallback_filters.append(func.lower(venues_table.c.city) == city.lower())
+            rows = conn.execute(
+                select(
+                    events_table.c.id,
+                    events_table.c.title,
+                    events_table.c.category,
+                    events_table.c.subcategory,
+                    events_table.c.start_dt,
+                    events_table.c.end_dt,
+                    events_table.c.lat,
+                    events_table.c.lon,
+                    events_table.c.url,
+                    events_table.c.source,
+                    events_table.c.expected_attendance,
+                    venues_table.c.name.label("venue_name"),
+                    venues_table.c.lat.label("venue_lat"),
+                    venues_table.c.lon.label("venue_lon"),
+                    venues_table.c.city.label("city"),
+                )
+                .select_from(join_stmt)
+                .where(*fallback_filters)
+                .order_by(events_table.c.start_dt)
+            ).mappings().all()
         return [dict(row) for row in rows]
 
     def _resolve_venue_id(self, event_data: Dict[str, Any]) -> Optional[int]:

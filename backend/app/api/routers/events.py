@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date as date_type, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 import math
+from typing import Optional
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -19,7 +20,7 @@ router = APIRouter(tags=["events"])
 def list_events(
     date: date_type,
     from_hour: int = Query(..., ge=0, le=23),
-    city: str | None = Query(None, description="Ciudad/provincia para filtrar"),
+    city: Optional[str] = Query(None, description="Ciudad/provincia para filtrar"),
     engine: Engine = Depends(get_engine),
 ):
     tz = ZoneInfo("Europe/Madrid")
@@ -31,11 +32,6 @@ def list_events(
     for row in rows:
         start_dt = _to_local(row.get("start_dt"), tz)
         end_dt = _to_local(row.get("end_dt"), tz)
-        inferred_end = end_dt or (start_dt + timedelta(hours=3) if start_dt else None)
-        # Filtro de seguridad por si el motor SQL no filtró correctamente
-        if start_dt and inferred_end:
-            if not (start_dt < window_end and inferred_end > window_start):
-                continue
         lat = row.get("lat") if row.get("lat") is not None else row.get("venue_lat")
         lon = row.get("lon") if row.get("lon") is not None else row.get("venue_lon")
         category = _normalize_category(row.get("category"))
